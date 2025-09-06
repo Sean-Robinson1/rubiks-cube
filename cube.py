@@ -370,21 +370,65 @@ class Cube:
                        '....W..W...........R..R...............................',
                        '....WW......................B..B......................',
                        '.W..W................................O..O.............'}
+
+        masksWithMoves = {('G', '...GW.....W..G........................................', "FU'RU"),
+                          ('G', '....W........G..W...............................G.....', "F'U'RU"),
+                          ('R', '....W..R...........W..R...............................', "FU'RU"),
+                          ('R', '....W.................R..W....................R.......', "F'U'RU"),
+                          ('B', '....WB......................W..B......................', "FU'RU"),
+                          ('B', '....W..........................B..W...............B...', "F'U'RU"),
+                          ('O', '.O..W................................W..O.............', "FU'RU"),
+                          ('O', '....W...................................O..W........O.', "F'U'RU")
+        }
+
+        recurseMasks = {'...WW.....G..G........................................',
+                        '....W..W...........R..R...............................',
+                        '....WW......................B..B......................',
+                        '.W..W................................O..O.............',
+                        '...GW.....W..G........................................',
+                        '....W..R...........W..R...............................',
+                        '....WB......................W..B......................',
+                        '.O..W................................W..O.............',
+                        '....W..........................B..W...............B...',
+                        '....W........G..W...............................G.....',
+                        '....W.................R..W....................R.......',
+                        '....W...................................O..W........O.'
+                        }
+
         
-        possibleMasks = solvedMasks.copy()
         numCorrect = 0
+        removed = "." * 54
         while numCorrect != 4:
-            numCorrect = 0
+            toRemove = []
+            for face, mask, pattern in masksWithMoves:
+                if self.checkMask(mask):
+                    toRemove.append((face,mask,pattern))
+                    recurseMasks.discard(mask)
+                    self.convertSequenceFromFace(face,pattern)
+
+            for item in toRemove:
+                masksWithMoves.remove(item)
+
+            toRemove = []
             for mask in solvedMasks:
                 if self.checkMask(mask):
-                    possibleMasks = list(map(lambda x : self.combineMasks(x,mask),possibleMasks))
+                    toRemove.append(mask)
                     numCorrect += 1
 
             if numCorrect == 4:
                 break
 
-            possibleMasks = list(filter(lambda x : not self.checkMask(x), possibleMasks))
-            moves = self.recurseToMasks(possibleMasks,5) 
+            for mask in toRemove:
+                solvedMasks.remove(mask)
+                removed = self.combineMasks(removed,mask)
+
+            if len(toRemove) > 0:
+                recurseMasks = set(map(lambda x : self.combineMasks(x,removed),recurseMasks))
+                masksWithMoves = set(map(lambda x : (x[0],self.combineMasks(x[1],removed),x[2]),masksWithMoves))
+
+            recurseMasks = set(filter(lambda x : not self.checkMask(x), recurseMasks))
+
+            moves = self.recurseToMasks(recurseMasks,5) 
 
             if moves is not None:
                 self.executeSequence("".join(moves))
@@ -784,7 +828,6 @@ class Cube:
 
         return newList
 
-
 def main() -> None:
     cube = Cube()
     cube.plot3D()
@@ -819,8 +862,6 @@ def main() -> None:
             cube.final()
             yellowFaceTime = time.time()
             cube.displayCube()
-
-            moves = cube.movesMade.copy()
             
             print(f"Moves : {' '.join(cube.movesMade)}")
             print(f"Number of Rotations: {len(cube.movesMade)}")
@@ -914,6 +955,7 @@ def main() -> None:
                 cube.final()
                 totalFinalTime += time.time() - yellowEdgesTime
                 yellowFaceTime = time.time()
+                maxFinalTime = max(maxFinalTime, yellowFaceTime - yellowEdgesTime)
 
                 totalTime += yellowFaceTime - startTime
                 
