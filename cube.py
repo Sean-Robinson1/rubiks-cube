@@ -366,10 +366,10 @@ class Cube:
         Gets the white cross on the top of the cube.
         """
         # solved masks for each white center piece for each face
-        solvedMasks = {'...WW.....G..G........................................',
-                       '....W..W...........R..R...............................',
-                       '....WW......................B..B......................',
-                       '.W..W................................O..O.............'}
+        solvedMasks = {('G','...WW.....G..G........................................'),
+                       ('R','....W..W...........R..R...............................'),
+                       ('B','....WW......................B..B......................'),
+                       ('O','.W..W................................O..O.............')}
 
         masksWithMoves = {('G', '...GW.....W..G........................................', "FU'RU"),
                           ('G', '....W........G..W...............................G.....', "F'U'RU"),
@@ -410,17 +410,17 @@ class Cube:
                 masksWithMoves.remove(item)
 
             toRemove = []
-            for mask in solvedMasks:
+            for face, mask in solvedMasks:
                 if self.checkMask(mask):
-                    toRemove.append(mask)
+                    toRemove.append((face,mask))
                     numCorrect += 1
 
             if numCorrect == 4:
                 break
 
-            for mask in toRemove:
-                solvedMasks.remove(mask)
-                removed = self.combineMasks(removed,mask)
+            for item in toRemove:
+                solvedMasks.remove(item)
+                removed = self.combineMasks(removed,item[1])
 
             if len(toRemove) > 0:
                 recurseMasks = set(map(lambda x : self.combineMasks(x,removed),recurseMasks))
@@ -430,6 +430,11 @@ class Cube:
 
             moves = self.recurseToMasks(recurseMasks,5) 
 
+            if moves is None:
+                for face, mask in solvedMasks:
+                    if not self.checkMask(mask):
+                        self.convertSequenceFromFace(face,"FU'RU")
+                        
             if moves is not None:
                 self.executeSequence("".join(moves))
 
@@ -473,15 +478,14 @@ class Cube:
                 if self.checkMask(mask[1]):
                     self.insertCorner(mask[0])
                     inserted = True
-                    break
 
             if inserted:
                 continue
 
             recurseMasks = list(map(lambda x: x[1],insertionMasks))
-            moves = self.recurseToMasks(recurseMasks,3)
+            moves = self.recurseToMasks(recurseMasks,2)
 
-            if moves == None:
+            if moves is None:
                 for face, mask in solvedMasks:
                     if not self.checkMask(mask):
                         self.insertCorner(face+"_2")
@@ -492,7 +496,6 @@ class Cube:
             for mask in insertionMasks:
                 if self.checkMask(mask[1]):
                     self.insertCorner(mask[0])
-                    break
 
     def insertCorner(self,code: str) -> None:
         """
@@ -512,8 +515,6 @@ class Cube:
         Inserts the middle layer edge pieces correctly as part of the F2L (First 2 Layers) solution.
         """
         mask = 'WWWWWWWWWGGG.G....RRR.R....BBB.B....OOO.O.............'
-
-        correctPieces = 0
 
         ## solved masks
 
@@ -537,6 +538,7 @@ class Cube:
 
         possibleMasks = {redBlue,redGreen,blueRed,blueOrange,orangeBlue,orangeGreen,greenOrange,greenRed}
 
+        correctPieces = 0
         while correctPieces != 4:
             correctPieces = 0
             for mask in solvedMasks:
@@ -553,15 +555,14 @@ class Cube:
                 if self.checkMask(mask[1]):
                     self.insertPiece(mask[0])
                     inserted = True
-                    break
 
             if inserted:
                 continue
 
             recurseMasks = list(map(lambda x: x[1],possibleMasks))
-            moves = self.recurseToMasks(recurseMasks,3)
+            moves = self.recurseToMasks(recurseMasks,2)
 
-            if moves == None:
+            if moves is None:
                 for face, mask in solvedMasks:
                     if not self.checkMask(mask):
                         self.insertPiece(face)
@@ -572,7 +573,6 @@ class Cube:
             for mask in possibleMasks:
                 if self.checkMask(mask[1]):
                     self.insertPiece(mask[0])
-                    break
 
     def solveYellowCross(self) -> None:
         """
