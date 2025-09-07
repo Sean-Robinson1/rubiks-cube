@@ -2,7 +2,7 @@ from cube import Cube
 from threading import Thread
 import queue
 
-TIMEOUT = 90 # seconds
+TIMEOUT = 45 # seconds
 
 def run_analysis(q: queue.Queue):
     try:
