@@ -22,3 +22,33 @@ def checkMask(mask: str, state: str) -> bool:
         if mask[i] != '.' and mask[i] != state[i]:
             return False
     return True
+
+def printAnalysis(analysis: dict) -> None:
+    """
+    Prints the analysis of the cube.
+    """
+
+    print(f"\n-----------------------------")
+    print(f"Average Solve Time: {analysis['avg_time']}")
+    print(f"Avg number of Rotations: {round(analysis['avg_moves'], 5)}")
+    print(f"Avg number of optimised rotations: {round(analysis['avg_moves_optimised'], 5)}")
+    print(f"Avg number of rotations saved:  {round(analysis['avg_moves_saved'],2)}")
+
+    print(f"-----------------------------")
+
+    print(f"Avg Cross Time: {analysis['avg_cross_time']}")
+    print(f"Avg Corners Time: {analysis['avg_corners_time']}")
+    print(f"Avg Middles Time: {analysis['avg_middles_time']}")
+    print(f"Avg Yellow Cross Time: {analysis['avg_yellow_cross_time']}")
+    print(f"Avg Yellow Edges Time: {analysis['avg_yellow_edges_time']}")
+    print(f"Avg Final Time: {analysis['avg_final_time']}")
+    
+    print(f"-----------------------------")
+
+    print(f"Max Cross Time: {analysis['max_cross_time']}")
+    print(f"Max Corners Time: {analysis['max_corners_time']}")
+    print(f"Max Middles Time: {analysis['max_middles_time']}")
+    print(f"Max Yellow Cross Time: {analysis['max_yellow_cross_time']}")
+    print(f"Max Yellow Edges Time: {analysis['max_yellow_edges_time']}")
+    print(f"Max Final Time: {analysis['max_final_time']}")
+    print(f"-----------------------------")

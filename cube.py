@@ -1,6 +1,6 @@
 import random
 from cube_plotter import plotRubiks3D
-from cube_utils import rotate, checkMask
+from cube_utils import rotate, checkMask, printAnalysis
 import time
 import pyperclip
 import copy
@@ -827,6 +827,91 @@ class Cube:
             newList.append(moves[-1])
 
         return newList
+    
+    def analyseSolves(self, numSolves: int = 100, displayAllTimes: bool = True, displayStats: bool = True) -> dict:
+        """
+        Analyses the cube to find the most efficient way to solve it.
+        """
+        totalTime = 0
+        totalMoves = 0
+        totalCrossTime = 0
+        maxCrossTime = 0
+        totalCornersTime = 0
+        maxCornersTime = 0
+        totalMiddlesTime = 0
+        maxMiddlesTime = 0
+        totalYellowCrossTime = 0
+        maxYellowCrossTime = 0
+        totalYellowEdgesTime = 0
+        maxYellowEdgesTime = 0
+        maxFinalTime = 0
+        totalFinalTime = 0
+        totalMovesOptimised = 0
+        for _ in range(numSolves):
+            self.randomiseCube()
+            self.movesMade = []
+            startTime = time.time()
+            self.solveCross()
+            totalCrossTime += time.time() - startTime
+            crossTime = time.time()
+            maxCrossTime = max(maxCrossTime, crossTime - startTime)
+            self.solveF2LCorners()
+            totalCornersTime += time.time() - crossTime
+            cornersTime = time.time()
+            maxCornersTime = max(maxCornersTime, cornersTime - crossTime)
+            self.solveF2LMiddlePieces()
+            totalMiddlesTime += time.time() - cornersTime
+            middlesTime = time.time()
+            maxMiddlesTime = max(maxMiddlesTime, middlesTime - cornersTime)
+            self.solveYellowCross()
+            totalYellowCrossTime += time.time() - middlesTime
+            yellowCrossTime = time.time()
+            maxYellowCrossTime = max(maxYellowCrossTime, yellowCrossTime - middlesTime)
+            self.alignYellowEdges()
+            totalYellowCrossTime += time.time() - yellowCrossTime
+            yellowEdgesTime = time.time()
+            maxYellowEdgesTime = max(maxYellowEdgesTime, yellowEdgesTime - yellowCrossTime)
+            self.solveYellowCorners()
+            totalYellowEdgesTime += time.time() - yellowEdgesTime
+            yellowEdgesTime = time.time()
+            maxYellowEdgesTime = max(maxYellowEdgesTime, yellowEdgesTime - yellowEdgesTime)
+            self.final()
+            totalFinalTime += time.time() - yellowEdgesTime
+            yellowFaceTime = time.time()
+            maxFinalTime = max(maxFinalTime, yellowFaceTime - yellowEdgesTime)
+
+            totalTime += yellowFaceTime - startTime
+            optimisedMoves = self.optimiseMoves(self.movesMade.copy())
+            if displayAllTimes:
+                print(f'Time Taken : {round(yellowFaceTime - startTime,2)} seconds')
+                print(f"Number of Rotations: {len(optimisedMoves)}")
+
+            totalMoves += len(self.movesMade)
+            totalMovesOptimised += len(optimisedMoves)
+
+        results = {
+            "avg_time": round(totalTime / numSolves, 5),
+            "avg_moves": round(totalMoves / numSolves, 5),
+            "avg_moves_optimised": round(totalMovesOptimised / numSolves, 5),
+            "avg_moves_saved": round((totalMoves - totalMovesOptimised) / numSolves, 2),
+            "avg_cross_time": round(totalCrossTime / numSolves, 5),
+            "avg_corners_time": round(totalCornersTime / numSolves, 5),
+            "avg_middles_time": round(totalMiddlesTime / numSolves, 5),
+            "avg_yellow_cross_time": round(totalYellowCrossTime / numSolves, 5),
+            "avg_yellow_edges_time": round(totalYellowEdgesTime / numSolves, 5),
+            "avg_final_time": round(totalFinalTime / numSolves, 5),
+            "max_cross_time": round(maxCrossTime, 5),
+            "max_corners_time": round(maxCornersTime, 5),
+            "max_middles_time": round(maxMiddlesTime, 5),
+            "max_yellow_cross_time": round(maxYellowCrossTime, 5),
+            "max_yellow_edges_time": round(maxYellowEdgesTime, 5),
+            "max_final_time": round(maxFinalTime, 5),
+        }
+
+        if displayStats:
+            printAnalysis(results)
+
+        return results
 
 def main() -> None:
     cube = Cube()
@@ -909,86 +994,9 @@ def main() -> None:
             cube.solveCross()
         elif turn == 'analyse':
             numSolves = int(input('Num Solves:  '))
-            totalTime = 0
-            totalMoves = 0
-            totalCrossTime = 0
-            maxCrossTime = 0
-            totalCornersTime = 0
-            maxCornersTime = 0
-            totalMiddlesTime = 0
-            maxMiddlesTime = 0
-            totalYellowCrossTime = 0
-            maxYellowCrossTime = 0
-            totalYellowEdgesTime = 0
-            maxYellowEdgesTime = 0
-            maxFinalTime = 0
-            totalFinalTime = 0
-            totalMovesOptimised = 0
-            for i in range(numSolves):
-                cube.randomiseCube()
-                cube.movesMade = []
-                startTime = time.time()
-                cube.solveCross()
-                totalCrossTime += time.time() - startTime
-                crossTime = time.time()
-                maxCrossTime = max(maxCrossTime, crossTime - startTime)
-                cube.solveF2LCorners()
-                totalCornersTime += time.time() - crossTime
-                cornersTime = time.time()
-                maxCornersTime = max(maxCornersTime, cornersTime - crossTime)
-                cube.solveF2LMiddlePieces()
-                totalMiddlesTime += time.time() - cornersTime
-                middlesTime = time.time()
-                maxMiddlesTime = max(maxMiddlesTime, middlesTime - cornersTime)
-                cube.solveYellowCross()
-                totalYellowCrossTime += time.time() - middlesTime
-                yellowCrossTime = time.time()
-                maxYellowCrossTime = max(maxYellowCrossTime, yellowCrossTime - middlesTime)
-                cube.alignYellowEdges()
-                totalYellowCrossTime += time.time() - yellowCrossTime
-                yellowEdgesTime = time.time()
-                maxYellowEdgesTime = max(maxYellowEdgesTime, yellowEdgesTime - yellowCrossTime)
-                cube.solveYellowCorners()
-                totalYellowEdgesTime += time.time() - yellowEdgesTime
-                yellowEdgesTime = time.time()
-                maxYellowEdgesTime = max(maxYellowEdgesTime, yellowEdgesTime - yellowEdgesTime)
-                cube.final()
-                totalFinalTime += time.time() - yellowEdgesTime
-                yellowFaceTime = time.time()
-                maxFinalTime = max(maxFinalTime, yellowFaceTime - yellowEdgesTime)
-
-                totalTime += yellowFaceTime - startTime
-                
-                print(f'Time Taken : {round(yellowFaceTime - startTime,2)} seconds')
-                optimisedMoves = cube.optimiseMoves(cube.movesMade.copy())
-                print(f"Number of Rotations: {len(optimisedMoves)}")
-                totalMoves += len(cube.movesMade)
-                totalMovesOptimised += len(optimisedMoves)
-
-            print(f"\n-----------------------------")
-            print(f"Avg Cross Time: {round(totalCrossTime / numSolves,5)}")
-            print(f"Avg Corners Time: {round(totalCornersTime / numSolves,5)}")
-            print(f"Avg Middles Time: {round(totalMiddlesTime / numSolves,5)}")
-            print(f"Avg Yellow Cross Time: {round(totalYellowCrossTime / numSolves,5)}")
-            print(f"Avg Yellow Edges Time: {round(totalYellowEdgesTime / numSolves,5)}")
-            print(f"Avg Final Time: {round(totalFinalTime / numSolves,5)}")
-            print(f"-----------------------------")
-
-            print(f"-----------------------------")
-            print(f"Max Cross Time: {round(maxCrossTime,5)}")
-            print(f"Max Corners Time: {round(maxCornersTime,5)}")
-            print(f"Max Middles Time: {round(maxMiddlesTime,5)}")
-            print(f"Max Yellow Cross Time: {round(maxYellowCrossTime,5)}")
-            print(f"Max Yellow Edges Time: {round(maxYellowEdgesTime,5)}")
-            print(f"Max Final Time: {round(maxFinalTime,5)}")
-            print(f"-----------------------------")
-
-            print(f"Average Time: {round(totalTime / numSolves,5)}")
-            print(f"Avg number of Rotations: {round(totalMoves / numSolves, 5)}")
-            print(f"Avg number of optimised rotations: {round(totalMovesOptimised / numSolves, 5)}")
-            print(f"Avg number of rotations saved:  {round((totalMoves - totalMovesOptimised) / numSolves,2)}")
-        else:      
-            cube.executeSequence(turn,False)
+            cube.analyseSolves(numSolves)
+        else:
+            cube.executeSequence(turn, False)
         cube.plot3D()
 
 if __name__ == "__main__":
