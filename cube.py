@@ -2,7 +2,6 @@ import random
 from cube_plotter import plotRubiks3D
 from cube_utils import rotate, checkMask, printAnalysis
 import time
-import pyperclip
 import copy
 
 SOLVED_MASK = 'WWWWWWWWWGGGGGGGGGRRRRRRRRRBBBBBBBBBOOOOOOOOOYYYYYYYYY'
@@ -124,7 +123,6 @@ class Cube:
             sequence.append(move)
         
         self.executeSequence(''.join(sequence))
-        pyperclip.copy(str(sequence))
         return sequence
     
     def workBackwards(self,sequence: list[str]):

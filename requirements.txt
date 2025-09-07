@@ -2,4 +2,3 @@ numpy
 matplotlib
 opencv-python
 imutils
-pyperclip
