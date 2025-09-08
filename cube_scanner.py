@@ -1,7 +1,6 @@
 import cv2
 import numpy as np
 from tkinter import *
-import imutils
 from dominant_colour import getDominantColours
 from cube import Cube
 
@@ -133,64 +132,66 @@ def getFaces():
         raise Exception("Cannot open camera")
     
     while True:
-        ret, frame = vid.read()
-
-        framehsv = cv2.cvtColor(frame, cv2.COLOR_BGR2HSV)
-        cv2.namedWindow('raw image', cv2.WINDOW_NORMAL)
-        cv2.imshow('raw image',frame)
+        _, frame = vid.read()
 
         blurred = cv2.cvtColor(frame,cv2.COLOR_BGR2GRAY)
         blurred = cv2.GaussianBlur(blurred, (5, 5), cv2.BORDER_DEFAULT)
 
         canny = cv2.Canny(blurred, 20, 40)
-        cv2.namedWindow('img',cv2.WINDOW_NORMAL)
-        cv2.imshow('img',canny)
 
         kernel = np.ones((3,3), np.uint8)
         dilated = cv2.dilate(canny, kernel, iterations=2)
-        cv2.namedWindow('img2',cv2.WINDOW_NORMAL)
-        cv2.imshow('img2',dilated)
 
-        contours = cv2.findContours(canny.copy(), cv2.RETR_EXTERNAL,cv2.CHAIN_APPROX_SIMPLE)
-        contours = imutils.grab_contours(contours)
+        dilatedFrame = dilated
+
+        cv2.namedWindow('img2',cv2.WINDOW_NORMAL)
+        cv2.imshow('img2',dilatedFrame)
+
+        contours,_ = cv2.findContours(dilatedFrame.copy(), cv2.RETR_TREE,cv2.CHAIN_APPROX_SIMPLE)
         contours = sorted(contours, key=cv2.contourArea, reverse=True)
 
-        puzzleContour = None
         output = frame.copy()
         cv2.namedWindow('Puzzle Outline',cv2.WINDOW_NORMAL)
 
         # loop over the contours
-        counter = 20
+        counter = 12
         faceContours = []
         for c in contours:
             # approximate the contour
             peri = cv2.arcLength(c, True)
             approx = cv2.approxPolyDP(c, 0.05 * peri, True)
-            # if our approximated contour has four points, then we can
-            # assume we have found the outline of the puzzle
-            if 4 <= len(approx) <= 4 and 2200 > cv2.contourArea(approx) > 500:
-                if ((approx[0][0][0] - approx[1][0][0]) ** 2 + (approx[0][0][1] - approx[1][0][1])**2)**0.5 * 2 < peri < 6 * ((approx[0][0][0] - approx[1][0][0]) ** 2 + (approx[0][0][1] - approx[1][0][1])**2)**0.5:               
-                    puzzleContour = approx
-                    counter -= 1
-                    if counter == 0:
-                        break
-                    faceContours.append(approx)
-                    cv2.drawContours(output, [puzzleContour], -1, (255, 0, 0), 5)
+
+            minX, minY, width, height = cv2.boundingRect(approx)
+
+            aspectRatio = width / height
+            
+            # if our approximated contour has four points, and seems like a square,
+            # we can assume we have found one of the 9 cells on a face
+            if len(approx) == 4 and 2000 > cv2.contourArea(approx) > 300 and 0.8 < aspectRatio < 1.2:        
+                counter -= 1
+                if counter == 0:
+                    break
+                faceContours.append(approx)
+                cv2.drawContours(output, [approx], -1, (255, 0, 0), 5)
 
         if len(faceContours) > 4:
-            medianArea = cv2.contourArea(faceContours[len(faceContours)//2])
+            avgArea = sum([cv2.contourArea(faceContours[i]) for i in range(len(faceContours))]) / len(faceContours)
             faceCornersX = []
             faceCornersY = []
             for i in range(len(faceContours)):
-                if medianArea * 0.7 < cv2.contourArea(faceContours[i]) < 1.3 * medianArea:
+                if avgArea * 0.7 < cv2.contourArea(faceContours[i]) < 1.3 * avgArea:
                     for ii in range(4):
                         faceCornersX.append(faceContours[i][ii][0][0])
                         faceCornersY.append(faceContours[i][ii][0][1])
 
+            if len(faceCornersX) < 4 or len(faceCornersY) < 4:
+                continue    
+
             areaRect = (max(faceCornersX) - min(faceCornersX)) * (max(faceCornersY) - min(faceCornersY))
             maxX, maxY = max(faceCornersX), max(faceCornersY)
             minX, minY = min(faceCornersX), min(faceCornersY)
-            if areaRect * 0.62 < medianArea * 9 < areaRect * 1.4:
+
+            if areaRect * 0.45 < avgArea * 9 < areaRect * 1.1:
                 if (max(faceCornersX) - min(faceCornersX)) * 0.8 < max(faceCornersY) - min(faceCornersY) < 1.2 * (max(faceCornersX) - min(faceCornersX)):
                     cv2.rectangle(output,(min(faceCornersX),min(faceCornersY)),(max(faceCornersX),max(faceCornersY)),(0,0,255),3)
         
@@ -231,8 +232,7 @@ def main():
             cubeString += colour[0]
 
     cube = Cube(cubeString)
-    print(cube)
-    ax = cube.plot3D()
+    cube.plot3D()
 
     while True:
         turn = input('Rotation: ')
@@ -241,11 +241,11 @@ def main():
             print(sequence)
             cube.displayCube() 
         elif turn == 'solve':
-            cube.solve(ax)
+            cube.solve()
             print(cube.movesMade)
         else:      
             cube.executeSequence(turn,True)
-        ax = cube.plot3D(ax)
+        cube.plot3D()
 
 if __name__ == "__main__":
     main()
