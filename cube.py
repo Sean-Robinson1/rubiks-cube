@@ -1,50 +1,24 @@
 import random
-from cube_plotter import plotRubiks3D, createFig
-from cube_utils import rotate, checkMask, printAnalysis
+from cube_utils import rotate, checkMask, printAnalysis, optimiseMoves
 import time
 import copy
 import tkinter as tk
-from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
-
 
 SOLVED_MASK = 'WWWWWWWWWGGGGGGGGGRRRRRRRRRBBBBBBBBBOOOOOOOOOYYYYYYYYY'
 
 class Cube:
-    def __init__(self,info: str = None) -> None:
+    def __init__(self,startStr: str = None) -> None:
         #top = 0, left = 1, front = 2, right = 3, back = 4, bottom = 5
         #top = white, left = green, front = red, right = blue, back = orange, bottom = yellow
-        self.sideNumToColour = {0:'W',1:'G',2:'R',3:'B',4:'O',5:'Y'}
-        self.colourToSideNum = {'W':0,'G':1,'R':2,'B':3,'O':4,'Y':5}
+        self.faceNumToColour = {0:'W',1:'G',2:'R',3:'B',4:'O',5:'Y'}
+        self.colourToFaceNum = {'W':0,'G':1,'R':2,'B':3,'O':4,'Y':5}
         self.colours = ['W', 'G', 'R', 'B', 'O', 'Y']
-        self.faces: list[list[str]] = []
+        self.faces: list[list[str]] = [[[colour] * 3 for _ in range(3)] for colour in self.colours]
         self.oppFaces = {0:5,1:3,2:4,3:1,4:3,5:0}
         self.calculateFaces('B','Y')
-        if not info:
-            for i in range(0,6):
-                x = []
-                for ii in range(3):
-                    x.append([])
-                    for _ in range(3):
-                        x[ii].append(self.sideNumToColour[i])
-                
-                self.faces.append(x)
-        else:
-            counter = 0
-            for i in range(0,6):
-                x = []
-                for ii in range(3):
-                    x.append([])
-                    for iii in range(3):
-                        x[ii].append(info[counter])
-                        counter += 1
-                
-                self.faces.append(x)
+        self.initialiseFaces(startStr)
 
         self.movesMade = []
-
-        self.fig, self.ax = createFig()
-        self.root = None
-        self.canvas = None
 
     def __str__(self) -> str:
         outputString = ''
@@ -56,6 +30,24 @@ class Cube:
     
     def __getitem__(self,index: int) -> list[list[str]]:
         return self.faces[index]
+    
+    @property
+    def optimisedMoves(self) -> list[str]:
+        return optimiseMoves(self.movesMade)
+    
+    def initialiseFaces(self,faceStr: str | None) -> None:
+        if faceStr:
+            self.faces = []
+            counter = 0
+            for _ in range(0,6):
+                face = []
+                for ii in range(3):
+                    face.append([])
+                    for _ in range(3):
+                        face[ii].append(faceStr[counter])
+                        counter += 1
+
+                self.faces.append(face)
 
     def calculateFaces(self, front:int, top:int) -> None:
         """
@@ -63,8 +55,8 @@ class Cube:
         
         Note - this assumes the two faces are not opposites.
         """
-        self.top = self.colourToSideNum[top]
-        self.front = self.colourToSideNum[front]
+        self.top = self.colourToFaceNum[top]
+        self.front = self.colourToFaceNum[front]
         self.bottom = self.oppFaces[self.top]
         self.back = self.oppFaces[self.front]
         self.left = ((self.front - 2) % 4) + 1
@@ -318,13 +310,6 @@ class Cube:
             if mask[i] != '.' and mask[i] != stringVersion[i]:
                 return False
         return True
-
-    def plot3D(self) -> None:
-        """
-        Plots the cube in 3D.
-        """
-        self.fig, self.ax = plotRubiks3D(self.getPlottingList(),self.ax, self.fig)
-        self.canvas.draw()
 
     def getOppositeFace(self,colour: str) -> str:
         """Returns the opposite face relative to the given face colour"""
@@ -774,63 +759,6 @@ class Cube:
                 out += mask1[i]
 
         return out
-
-    def optimiseMoves(self,moves: list[str]) -> list[str]:
-        """
-        Looks through a list of moves and applies general rules to reduce the 
-        total number of rotations while maintaining the same output. i.e. running
-        this function will result in a shorter list of moves that will perform
-        the same transformation on the cube.        
-        """
-        ## checking if there is a repeated section of 4
-        newList = []
-        i = 0
-        while i <= len(moves) - 4:
-            if moves[i] == moves[i+1] == moves[i+2] == moves[i+3]:
-                i += 4
-            else:
-                newList.append(moves[i])
-                i += 1
-
-        newList += moves[i:]
-
-        ## replacing repeated sections of length 3 
-        moves = newList.copy()
-        newList = []
-        i = 0
-        while i <= len(moves) - 3:
-            if moves[i] == moves[i+1] == moves[i+2]:
-                if len(moves[i]) == 1:
-                    newList.append(moves[i] + 'i')
-                else:
-                    newList.append(moves[i][0])
-                i += 3
-                
-            else:
-                newList.append(moves[i])
-                i += 1
-
-        newList += moves[i:]
-
-        ## removing all occurences of a move followed by its inverse
-
-        moves = newList.copy()
-        newList = []
-        i = 0
-        skippedLast = False
-        while i < len(moves) -1:
-            if moves[i][0] == moves[i+1][0] and moves[i] != moves[i+1]:
-                i += 2
-                skippedLast = False
-            else:
-                newList.append(moves[i])
-                i += 1
-                skippedLast = True
-
-        if skippedLast:
-            newList.append(moves[-1])
-
-        return newList
     
     def analyseSolves(self, numSolves: int = 100, displayAllTimes: bool = True, displayStats: bool = True) -> dict:
         """
@@ -885,7 +813,7 @@ class Cube:
             maxFinalTime = max(maxFinalTime, yellowFaceTime - yellowEdgesTime)
 
             totalTime += yellowFaceTime - startTime
-            optimisedMoves = self.optimiseMoves(self.movesMade.copy())
+            optimisedMoves = self.optimisedMoves
             if displayAllTimes:
                 print(f'Time Taken : {round(yellowFaceTime - startTime,2)} seconds')
                 print(f"Number of Rotations: {len(optimisedMoves)}")
@@ -916,195 +844,3 @@ class Cube:
             printAnalysis(results)
 
         return results
-
-    def createTkWindow(self) -> None:
-        self.tk = tk.Tk()
-        self.tk.title("Rubik's Cube")
-
-        w, h = self.tk.winfo_screenwidth(), self.tk.winfo_screenheight()
-        self.tk.geometry(f"{w//2}x{h//2}")
-
-        # Create main horizontal container using pack
-        main_container = tk.Frame(self.tk)
-        main_container.pack(fill=tk.BOTH, expand=True, padx=10, pady=10)
-
-        # Calculate dimensions for 60% canvas, 40% buttons split
-        canvas_width = int((w//2) * 0.6)  # 60% of window width for canvas
-        button_width = int((w//2) * 0.35)  # 35% for buttons, 5% for padding
-        
-        # Canvas frame on the left - fixed size
-        canvas_frame = tk.Frame(main_container, bg='lightgray', width=canvas_width)
-        canvas_frame.pack(side=tk.LEFT, fill=tk.Y)
-        canvas_frame.pack_propagate(False)  # Maintain fixed width
-        
-        # Create matplotlib canvas
-        self.canvas = FigureCanvasTkAgg(self.fig, master=canvas_frame)
-        self.canvas.get_tk_widget().pack(fill=tk.BOTH, expand=False)
-        
-        self.plot3D()
-        self.ax.view_init(elev=210, azim=120)
-
-        # Button frame on the right - fixed width
-        button_frame = tk.Frame(main_container, bg='white', width=button_width)
-        button_frame.pack(side=tk.RIGHT, fill=tk.Y, padx=(20, 0))
-        button_frame.pack_propagate(False)  # Prevent frame from shrinking
-
-        # Title for button section
-        title_label = tk.Label(button_frame, text="Cube Rotations", 
-                            font=('Arial', 14, 'bold'), bg='white')
-        title_label.pack(pady=(10, 20))
-
-        button_names = ["R", "L", "U", "D", "F", "B", "R'", "L'", "U'", "D'", "F'", "B'"]
-        button_funcs = [self.rotateR, self.rotateL, self.rotateU, self.rotateD, self.rotateF, self.rotateB, lambda: self.rotateR(-1), lambda: self.rotateL(-1), lambda: self.rotateU(-1),
-                            lambda: self.rotateD(-1), lambda: self.rotateF(-1), lambda: self.rotateB(-1)]
-
-         # Create button container with two columns
-        button_container = tk.Frame(button_frame, bg='white')
-        button_container.pack(fill=tk.BOTH, expand=True, padx=10)
-        
-        # Configure two columns in button container
-        button_container.grid_columnconfigure(0, weight=1)
-        button_container.grid_columnconfigure(1, weight=1)
-
-        # Create buttons with better spacing
-        for i, (name, func) in enumerate(zip(button_names, button_funcs)):
-            btn = tk.Button(
-                button_container,
-                text=name,
-                font=('Arial', 12, 'bold'),
-                width=12,
-                height=2,
-                bg='lightblue',
-                activebackground='darkblue',
-                activeforeground='white',
-                command=lambda f=func: [f(), self.plot3D()]  # Update the canvas after rotation
-            )
-            btn.grid(row=i%6, column=i//6, padx=5, pady=5, sticky='nsew')
-
-        # Add some additional controls at the bottom
-        control_frame = tk.Frame(button_frame, bg='white')
-        control_frame.pack(side=tk.BOTTOM, fill=tk.X, padx=10, pady=20)
-
-        control_frame.grid_columnconfigure(0, weight=1)
-        control_frame.grid_columnconfigure(1, weight=1)
-        
-        reset_btn = tk.Button(
-            control_frame,
-            text="Reset View",
-            font=('Arial', 10),
-            bg='lightcoral',
-            activebackground='darkred',
-            activeforeground='white',
-            command=lambda: [self.ax.view_init(elev=210, azim=120), self.plot3D()]
-        )
-        reset_btn.grid(row=0, column=0, sticky='ew', pady=5, padx=(0,5))
-
-        scramble_btn = tk.Button(
-            control_frame,
-            text="Scramble",
-            font=('Arial', 10),
-            bg='lightgreen',
-            activebackground='darkgreen',
-            activeforeground='white',
-            command=lambda: [self.randomiseCube(), self.plot3D()]
-        )
-        scramble_btn.grid(row=0, column=1, sticky='ew', pady=5, padx=(5,0))
-
-        solve_btn = tk.Button(
-            control_frame,
-            text="Solve",
-            font=('Arial', 13),
-            bg='lightgreen',
-            activebackground='darkgreen',
-            activeforeground='white',
-            command=lambda: [self.solve(), self.plot3D()]
-        )
-        solve_btn.grid(row=1, column=0, columnspan=2, sticky='ew', pady=5)
-
-def main() -> None:
-    cube = Cube()
-
-    cube.createTkWindow()
-
-    while True:
-        turn = input('Rotation: ')
-        if turn == 'randomise' or turn == 'rand':
-            sequence = cube.randomiseCube()
-            print(" ".join(sequence))
-            print(" ".join(sequence).replace("i","'"))
-            cube.displayCube() 
-        elif turn == 'solve':
-            cube.movesMade = []
-            cube.displayCube()
-            startTime = time.time()
-            cube.solveCross()
-            whiteCrossTime = time.time()
-            cube.displayCube()
-            cube.solveF2LCorners()
-            f2lCornersTime = time.time()
-            cube.displayCube()
-            cube.solveF2LMiddlePieces()
-            f2lMiddlePiecesTime = time.time()
-            cube.displayCube()
-            cube.solveYellowCross()
-            yellowCrossTime = time.time()
-            cube.displayCube()
-            cube.alignYellowEdges()
-            cube.solveYellowCorners()
-            cube.final()
-            yellowFaceTime = time.time()
-            cube.displayCube()
-            
-            print(f"Moves : {' '.join(cube.movesMade)}")
-            print(f"Number of Rotations: {len(cube.movesMade)}")
-
-            optimisedMoves = cube.optimiseMoves(cube.movesMade.copy())
-
-            print(f"Moves : {' '.join(optimisedMoves)}")
-            print(f"Number of Rotations: {len(optimisedMoves)}")
-            print(f'Optimised {len(cube.movesMade) - len(optimisedMoves)} moves')
-
-            print(f'\n-----------------------------')
-            print(f'Time Taken : {round(yellowFaceTime - startTime,2)} seconds')
-
-            print(f'White Cross:    {round(whiteCrossTime - startTime,2)} seconds')
-            print(f'White Corners:  {round(f2lCornersTime - whiteCrossTime,2)} seconds')
-            print(f'Middle Pieces:  {round(f2lMiddlePiecesTime - f2lCornersTime,2)} seconds')
-            print(f'Yellow Cross:   {round(yellowCrossTime - f2lMiddlePiecesTime,2)} seconds')
-            print(f'Yellow Face:    {round(yellowFaceTime - yellowCrossTime,2)} seconds')
-            print(f'-----------------------------\n')
-
-            cube.plot3D()
-        elif turn == 'display':
-            cube.displayCube()
-        elif turn == 'mask':
-            mask = input("Mask: ")
-            print(cube.checkMask(mask))
-        elif turn == 'print':
-            print(cube)
-        elif turn == 'masks':
-            mask = input()
-            cube.showMask(mask)
-        elif turn == 'middles':
-            cube.solveF2LMiddlePieces()
-        elif turn == 'yellow':
-            cube.solveYellowCross()
-        elif turn == 'yellow edges' or turn == 'ye':
-            cube.alignYellowEdges()
-        elif turn == 'yellow corners' or turn == 'yc':
-            cube.solveYellowCorners()
-        elif turn == 'final':
-            cube.final()
-        elif turn == 'corners':
-            cube.solveF2LCorners()
-        elif turn == 'cross':
-            cube.solveCross()
-        elif turn == 'analyse':
-            numSolves = int(input('Num Solves:  '))
-            cube.analyseSolves(numSolves)
-        else:
-            cube.executeSequence(turn, False)
-        cube.plot3D()
-
-if __name__ == "__main__":
-    main()

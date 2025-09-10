@@ -23,6 +23,64 @@ def checkMask(mask: str, state: str) -> bool:
             return False
     return True
 
+
+def optimiseMoves(moves: list[str]) -> list[str]:
+    """
+    Looks through a list of moves and applies general rules to reduce the 
+    total number of rotations while maintaining the same output. i.e. running
+    this function will result in a shorter list of moves that will perform
+    the same transformation on the cube.        
+    """
+    ## checking if there is a repeated section of 4
+    newList = []
+    i = 0
+    while i <= len(moves) - 4:
+        if moves[i] == moves[i+1] == moves[i+2] == moves[i+3]:
+            i += 4
+        else:
+            newList.append(moves[i])
+            i += 1
+
+    newList += moves[i:]
+
+    ## replacing repeated sections of length 3 
+    moves = newList.copy()
+    newList = []
+    i = 0
+    while i <= len(moves) - 3:
+        if moves[i] == moves[i+1] == moves[i+2]:
+            if len(moves[i]) == 1:
+                newList.append(moves[i] + 'i')
+            else:
+                newList.append(moves[i][0])
+            i += 3
+            
+        else:
+            newList.append(moves[i])
+            i += 1
+
+    newList += moves[i:]
+
+    ## removing all occurences of a move followed by its inverse
+
+    moves = newList.copy()
+    newList = []
+    i = 0
+    skippedLast = False
+    while i < len(moves) -1:
+        if moves[i][0] == moves[i+1][0] and moves[i] != moves[i+1]:
+            i += 2
+            skippedLast = False
+        else:
+            newList.append(moves[i])
+            i += 1
+            skippedLast = True
+
+    if skippedLast:
+        newList.append(moves[-1])
+
+    return newList
+
 def printAnalysis(analysis: dict) -> None:
     """
     Prints the analysis of the cube.

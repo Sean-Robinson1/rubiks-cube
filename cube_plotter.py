@@ -15,11 +15,10 @@ def plotRubiks3D(colours:list[list[str]], ax: Axes3D, fig: plt.Figure) -> tuple[
     """
     Plots an interactive 3D representation of a Rubik's Cube.
     """
-    #plt.ion()
+
     counter = 0
 
-    while len(ax.artists) > 0:
-        ax.artists[0].remove()
+    ax.cla()
 
     # plots planes perpendicular to the z-axis (White/Yellow)
     for z in [0,3]:

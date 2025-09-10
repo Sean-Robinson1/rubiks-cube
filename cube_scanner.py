@@ -224,12 +224,17 @@ def getFaces():
 
     return previousFaces
 
-def main():
-    previousFaces = getFaces()
+def getCubeString() -> str:
+    faces = getFaces()
     cubeString = ''
     for face in ['White','Green','Red','Blue','Orange','Yellow']:
-        for colour in previousFaces[face]:
+        for colour in faces[face]:
             cubeString += colour[0]
+    print(cubeString)
+    return cubeString
+
+def main():
+    cubeString = getCubeString(getFaces())
 
     cube = Cube(cubeString)
     cube.plot3D()
