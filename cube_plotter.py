@@ -7,17 +7,19 @@ colours = []
 for colour in COLOURS:
     colours += [colour] * 9
 
-def plotRubiks3D(colours:list[list[str]], ax: Axes3D | None = None) -> Axes3D:
+def createFig() -> tuple[plt.Figure, Axes3D]:
+    fig, ax = plt.subplots(subplot_kw={"projection": "3d"})
+    return fig, ax
+
+def plotRubiks3D(colours:list[list[str]], ax: Axes3D, fig: plt.Figure) -> tuple[plt.Figure, Axes3D]:
     """
     Plots an interactive 3D representation of a Rubik's Cube.
     """
-    plt.ion()
+    #plt.ion()
     counter = 0
-    if not ax:
-        fig, ax = plt.subplots(subplot_kw={"projection": "3d"})
-    else:
-        while len(ax.artists) > 0:
-            ax.artists[0].remove()
+
+    while len(ax.artists) > 0:
+        ax.artists[0].remove()
 
     # plots planes perpendicular to the z-axis (White/Yellow)
     for z in [0,3]:
@@ -59,14 +61,4 @@ def plotRubiks3D(colours:list[list[str]], ax: Axes3D | None = None) -> Axes3D:
                 counter += 1
 
     plt.axis('off')
-    plt.pause(0.1)
-    return ax
-
-def renderAll() -> None:
-    plt.show()
-
-def change_I_mode() -> None:
-    if plt.isinteractive():
-        plt.ioff()
-    else:
-        plt.ion()
+    return fig, ax

@@ -227,7 +227,7 @@ def getFaces():
 def main():
     previousFaces = getFaces()
     cubeString = ''
-    for face in  ['White','Green','Red','Blue','Orange','Yellow']:
+    for face in ['White','Green','Red','Blue','Orange','Yellow']:
         for colour in previousFaces[face]:
             cubeString += colour[0]
 
