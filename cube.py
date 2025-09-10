@@ -1,8 +1,7 @@
 import random
-from cube_utils import rotate, checkMask, printAnalysis, optimiseMoves
 import time
 import copy
-import tkinter as tk
+from cube_utils import rotate, checkMask, printAnalysis, optimiseMoves
 
 SOLVED_MASK = 'WWWWWWWWWGGGGGGGGGRRRRRRRRRBBBBBBBBBOOOOOOOOOYYYYYYYYY'
 
@@ -12,11 +11,11 @@ class Cube:
         #top = white, left = green, front = red, right = blue, back = orange, bottom = yellow
         self.faceNumToColour = {0:'W',1:'G',2:'R',3:'B',4:'O',5:'Y'}
         self.colourToFaceNum = {'W':0,'G':1,'R':2,'B':3,'O':4,'Y':5}
+        self.oppFaces = {0:5,1:3,2:4,3:1,4:2,5:0}
         self.colours = ['W', 'G', 'R', 'B', 'O', 'Y']
         self.faces: list[list[str]] = [[[colour] * 3 for _ in range(3)] for colour in self.colours]
-        self.oppFaces = {0:5,1:3,2:4,3:1,4:3,5:0}
-        self.calculateFaces('B','Y')
         self.initialiseFaces(startStr)
+        self.calculateFaces('R','W')
 
         self.movesMade = []
 
@@ -35,7 +34,7 @@ class Cube:
     def optimisedMoves(self) -> list[str]:
         return optimiseMoves(self.movesMade)
     
-    def initialiseFaces(self,faceStr: str | None) -> None:
+    def initialiseFaces(self, faceStr: str | None) -> None:
         if faceStr:
             self.faces = []
             counter = 0
@@ -49,19 +48,19 @@ class Cube:
 
                 self.faces.append(face)
 
-    def calculateFaces(self, front:int, top:int) -> None:
+    def calculateFaces(self, front: str, top: str) -> None:
         """
         Calculates faces relative to a chosen front face and a chosen top face.
         
         Note - this assumes the two faces are not opposites.
         """
-        self.top = self.colourToFaceNum[top]
-        self.front = self.colourToFaceNum[front]
-        self.bottom = self.oppFaces[self.top]
-        self.back = self.oppFaces[self.front]
-        self.left = ((self.front - 2) % 4) + 1
-        self.right = self.oppFaces[self.left]
-    
+        self.top = top
+        self.front = front
+        self.bottom = self.getOppositeFace(top)
+        self.back = self.getOppositeFace(front)
+        self.left = self.faceNumToColour[((self.colourToFaceNum[self.front] - 2) % 4) + 1]
+        self.right = self.getOppositeFace(self.left)
+
     def getPlottingList(self) -> list[str]:
         """
         Returns a list of colours in the correct order to be plotted.
@@ -313,7 +312,7 @@ class Cube:
 
     def getOppositeFace(self,colour: str) -> str:
         """Returns the opposite face relative to the given face colour"""
-        mapping = {'R': 'O', 'B': 'G', 'W': 'Y'}
+        mapping = {'R': 'O', 'B': 'G', 'W': 'Y', 'Y': 'W', 'G': 'B', 'O': 'R'}
         return mapping.get(colour, None)
 
     def getLeftFace(self, colour: str) -> str:
@@ -325,12 +324,22 @@ class Cube:
         """Returns the right face relative to the given face colour."""
         mapping = {'R': 'B', 'B': 'O', 'O': 'G', 'G': 'R'}
         return mapping.get(colour, None)
-    
-    def convertSequenceFromFace(self,face: str,sequence: str) -> None:
+
+    def executeSequenceRelative(self, sequence: str) -> None:
+        """
+        Executes a sequence of moves relative to the current front and top faces.
+        """
+        out = ""
+        for letter in sequence:
+            out += self.right if letter == 'R' else self.left if letter == 'L' else self.front if letter == 'F' else self.back if letter == 'B' else self.top if letter == 'U' else self.bottom if letter == 'D' else letter
+
+        self.executeSequence(out, True)
+
+    def convertSequenceFromFace(self, face: str, sequence: str) -> None:
         """
         Converts a sequence of moves from the perspective of a given face.
         """
-        out = ''
+        out = ""
         mapper = {'B':{'F':'R','R':'B','B':'L','L':'F'},'G':{'F':'L','R':'F','B':'R','L':'B'},'O':{'F':'B','R':'L','B':'F','L':'R'}}
         for letter in sequence:
             out += mapper.get(face,{}).get(letter,letter) 

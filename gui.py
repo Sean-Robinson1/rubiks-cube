@@ -3,6 +3,41 @@ from cube_scanner import getCubeString
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 from cube import Cube
 import tkinter as tk
+import numpy as np
+
+# Face normals: (name, [x, y, z])
+faceNormals = [
+    ("White",  [0, 0, -1]),   
+    ("Yellow", [0, 0, 1]),  
+    ("Blue",   [1, 0, 0]),  
+    ("Green",  [-1, 0, 0]), 
+    ("Red",    [0, -1, 0]), 
+    ("Orange", [0, 1, 0]), 
+]
+
+def getRelativeFaces(ax):
+    # Convert azim/elev to a viewing vector
+    azimRad = np.deg2rad(ax.azim)
+    elevRad = np.deg2rad(ax.elev)
+    # Spherical to Cartesian
+    view = np.array([
+        np.cos(elevRad) * np.sin(azimRad),  # x
+        np.cos(elevRad) * np.cos(azimRad),  # y
+        np.sin(elevRad)                      # z
+    ])
+
+    up = np.array([
+        -np.sin(elevRad) * np.sin(azimRad),  # x
+        -np.sin(elevRad) * np.cos(azimRad),  # y
+        np.cos(elevRad)                       # z
+    ])
+
+    # Find the front face (max dot with view vector)
+    front = max(faceNormals, key=lambda f: np.dot(view, f[1]))[0][0]
+    # Find the top face (max dot with up vector)
+    top = max(faceNormals, key=lambda f: np.dot(up, f[1]))[0][0]
+
+    return front, top
 
 class GUI:
     def __init__(self, cube: Cube):
@@ -16,7 +51,7 @@ class GUI:
         """
         self.fig, self.ax = plotRubiks3D(self.cube.getPlottingList(),self.ax, self.fig)
         self.canvas.draw()
-    
+
     def createTkWindow(self) -> None:
         self.tk = tk.Tk()
         self.tk.title("Rubik's Cube")
@@ -77,7 +112,7 @@ class GUI:
                 bg='lightblue',
                 activebackground='darkblue',
                 activeforeground='white',
-                command=lambda f=func: [f(), self.plot3D()]  # Update the canvas after rotation
+                command=lambda name=name: [self.cube.calculateFaces(*getRelativeFaces(self.ax)), self.cube.executeSequenceRelative(name), self.plot3D()]  # Update the canvas after rotation
             )
             btn.grid(row=i%6, column=i//6, padx=5, pady=5, sticky='nsew')
 

@@ -7,6 +7,8 @@ from cube import Cube
 showCells = False
 calibrationMode = False
 
+faceToPosition = {'White': [420, 20], 'Green': [346, 94], 'Red': [420, 94], 'Blue': [494, 94], 'Orange': [568, 94], 'Yellow': [420, 168]}
+
 USUAL_COLOUR_VALUES = {
     'Red': (0, 0, 255),
     'Green': (0, 255, 0),
@@ -53,27 +55,14 @@ def getClosestColourName(colour: tuple[float, float, float]) -> str:
     # Return the color name
     return closestColour[0]
 
-def displayFace(image:np.ndarray,colourList:list[list]) -> np.ndarray:
+def displayFace(image: np.ndarray, colourList: list[list]) -> np.ndarray:
     """
     Displays a map of all the faces of the cube which have been detected.
     """
-    colourNames = ['White','Green','Red','Blue','Orange','Yellow']
-    
-    white = [420,20]
-    diff = 72
     width = 21
     jump = 2
 
-    colourValues = [white]
-    yellow = [white[0],white[1] + 2 * (diff+jump)]
-    for i in [-1,0,1,2]:
-        colour = [white[0] + i*(diff+jump),white[1] + (diff+jump)]
-        colourValues.append(colour.copy())
-
-    colourValues.append(yellow)
-
-    faceToPosition = dict(zip(colourNames,colourValues))
-
+    # gets the topleft corner of the face and draws the squares in a 3x3 grid
     topLeft = faceToPosition[colourList[4]]
     for i in range(3):
         for ii in range(3):
@@ -81,7 +70,7 @@ def displayFace(image:np.ndarray,colourList:list[list]) -> np.ndarray:
 
     return image
 
-def extractColours(image:np.ndarray) -> list[list]:   
+def extractColours(image: np.ndarray) -> list[list]:   
     """
     Extracts the colours of each cell in the Rubik's Cube face.
     """

@@ -1,7 +1,6 @@
-from cube import Cube
-import time 
-from cube_scanner import getCubeString
+from cube import Cube 
 from gui import GUI
+import time
 
 def main() -> None:
     cube = Cube()
