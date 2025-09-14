@@ -5,18 +5,30 @@ mappings = {'F': [0, 1, 2, 3, 4, 5, 17, 14, 11, 9, 10, 45, 12, 13, 46, 15, 16, 4
 # this is because it is more efficient to manipulate the mask directly than the cube
 # especially during the recursive BFS
 def rotate(mask: str, rotation: str) -> str:
+    """Rotates a mask given a specific rotation.
+    
+    Args:
+        mask (str): The mask to rotate.
+        rotation (str): The rotation to perform.
+
+    Returns:
+        str: The rotated mask.
     """
-    Rotates a mask given a specific rotation.
-    """
-    output = [' '] * 54 
+    output = [' '] * 54
     mapping = mappings[rotation]
     for i in range(54):
         output[i] = mask[mapping[i]]
     return "".join(output)
 
 def checkMask(mask: str, state: str) -> bool:
-    """
-    Checks if a mask and a state match.
+    """Checks if a mask and a state match.
+
+    Args:
+        mask (str): The mask to check.
+        state (str): The state to check against.
+
+    Returns:
+        bool: True if the mask matches the state, False otherwise.
     """
     for i in range(len(mask)):
         if mask[i] != '.' and mask[i] != state[i]:
@@ -29,7 +41,13 @@ def optimiseMoves(moves: list[str]) -> list[str]:
     Looks through a list of moves and applies general rules to reduce the 
     total number of rotations while maintaining the same output. i.e. running
     this function will result in a shorter list of moves that will perform
-    the same transformation on the cube.        
+    the same transformation on the cube.       
+
+    Args:
+        moves (list[str]): The list of moves to optimise. 
+
+    Returns:
+        list[str]: The optimised list of moves.
     """
     ## checking if there is a repeated section of 4
     newList = []
@@ -82,8 +100,10 @@ def optimiseMoves(moves: list[str]) -> list[str]:
     return newList
 
 def printAnalysis(analysis: dict) -> None:
-    """
-    Prints the analysis of the cube.
+    """Prints the analysis of multiple solves to the console.
+
+    Args:
+        analysis (dict): The analysis dictionary containing the statistics.
     """
 
     print(f"\n-----------------------------")

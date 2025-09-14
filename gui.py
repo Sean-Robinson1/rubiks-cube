@@ -21,6 +21,9 @@ def getRelativeFaces(ax: Axes3D) -> tuple[str, str]:
 
     Args:
         ax (Axes3D): The current axis
+
+    Returns:
+        tuple[str, str]: The front and top face names.
     """
 
     azimRad = np.deg2rad(ax.azim)

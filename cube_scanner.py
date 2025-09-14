@@ -4,9 +4,6 @@ from tkinter import *
 from PIL import Image, ImageTk
 from dominant_colour import getDominantColours
 
-showCells = False
-calibrationMode = False
-
 faceToPosition = {'White': [420, 20], 'Green': [346, 94], 'Red': [420, 94], 'Blue': [494, 94], 'Orange': [568, 94], 'Yellow': [420, 168]}
 
 USUAL_COLOUR_VALUES = {
@@ -28,11 +25,30 @@ COLOURS = [
 ]
 
 def distance(r, g, b, r2, g2, b2) -> float:
-    """Gets the distance between two RGB colors"""
+    """Gets the distance between two RGB colors.
+    
+    Args:
+        r (float): The red value of the first color.
+        g (float): The green value of the first color.
+        b (float): The blue value of the first color.
+        r2 (float): The red value of the second color.
+        g2 (float): The green value of the second color.
+        b2 (float): The blue value of the second color.
+
+    Returns:
+        float: The distance between the two colors.
+    """
     return (r - r2)**2 + (g - g2)**2 + (b - b2)**2
 
 def getClosestColourName(colour: tuple[float, float, float]) -> str:
-    """Gets the name of the closest color to the given RGB values."""
+    """Gets the name of the closest color to the given RGB values.
+    
+    Args:
+        colour (tuple[float, float, float]): The RGB values of the color.
+
+    Returns:
+        str: The name of the closest color.
+    """
     r, g, b = colour[0],colour[1],colour[2]
 
     closestColour = min(COLOURS, key=lambda x: distance(r, g, b, *x[1]))
@@ -40,7 +56,15 @@ def getClosestColourName(colour: tuple[float, float, float]) -> str:
     return closestColour[0]
 
 def displayFace(image: np.ndarray, colourList: list[list]) -> np.ndarray:
-    """Displays a map of all the faces of the cube which have been detected."""
+    """Displays a map of all the faces of the cube which have been detected.
+    
+    Args:
+        image (np.ndarray): The image to draw the face on.
+        colourList (list[list]): A list of lists containing the colours of each face of the cube.
+
+    Returns:
+        np.ndarray: The image with the face drawn on it.
+    """
     
     # sizes of squares
     width = 21
@@ -55,8 +79,13 @@ def displayFace(image: np.ndarray, colourList: list[list]) -> np.ndarray:
     return image
 
 def extractColours(image: np.ndarray) -> list[list]:   
-    """
-    Extracts the colours of each cell in the Rubik's Cube face.
+    """Extracts the colours of each cell in the Rubik's Cube face.
+
+    Args:
+        image (np.ndarray): The image of the Rubik's Cube face.
+
+    Returns:
+        list[list]: A list of lists containing the colours of each face of the cube.
     """
     cells = []
 
@@ -77,10 +106,6 @@ def extractColours(image: np.ndarray) -> list[list]:
     colours = []
     for cell in cells:
         counter += 1
-        # if showCells:
-        #     cv2.namedWindow(f'cell {counter}',cv2.WINDOW_NORMAL)
-        #     cv2.imshow(f'cell {counter}',cell.copy())
-
         dominantColour = getDominantColours(cell)[0]
         dominantColourName = getClosestColourName(dominantColour)
 
@@ -210,8 +235,10 @@ class CubeScanner:
             self.vid.release()
 
     def getCubeString(self) -> str:
-        """
-        Returns the cube string representation of the scanned cube.
+        """Returns the cube string representation of the scanned cube.
+        
+        Returns:
+            str: The cube string representation, or an empty string if not all faces are scanned.
         """
         cubeString = ''
         for face in ['White', 'Green', 'Red', 'Blue', 'Orange', 'Yellow']:

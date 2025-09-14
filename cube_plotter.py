@@ -8,12 +8,25 @@ for colour in COLOURS:
     colours += [colour] * 9
 
 def createFig() -> tuple[plt.Figure, Axes3D]:
-    """Creates a 3D fig and ax."""
+    """Creates a 3D fig and ax.
+    
+    Returns:
+        tuple[plt.Figure, Axes3D]: The figure and 3D axis.
+    """
     fig, ax = plt.subplots(subplot_kw={"projection": "3d"})
     return fig, ax
 
 def plotRubiks3D(colours: list[list[str]], ax: Axes3D, fig: plt.Figure) -> tuple[plt.Figure, Axes3D]:
-    """Plots an interactive 3D representation of a Rubik's Cube."""
+    """Plots an interactive 3D representation of a Rubik's Cube.
+    
+    Args:
+        colours (list[list[str]]): A list of lists containing the colours of each face of the cube.
+        ax (Axes3D): The 3D axis to plot on.
+        fig (plt.Figure): The figure to plot on.
+
+    Returns:
+        tuple[plt.Figure, Axes3D]: The figure and 3D axis.
+    """
 
     counter = 0
 

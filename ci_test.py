@@ -4,7 +4,12 @@ import queue
 
 TIMEOUT = 45 # seconds
 
-def run_analysis(q: queue.Queue):
+def run_analysis(q: queue.Queue) -> None:
+    """Runs the cube analysis in a separate thread and puts the result in the queue.
+    
+    Args:
+        q (queue.Queue): The queue to put the result in.
+    """
     try:
         cube = Cube()
         results = cube.analyseSolves(1000, displayAllTimes=False, displayStats=True)
@@ -12,7 +17,8 @@ def run_analysis(q: queue.Queue):
     except Exception as e:
         q.put(e)
 
-def main():
+def main() -> None:
+    """Main function to run the cube analysis with a timeout."""
     q = queue.Queue()
     thread = Thread(target=run_analysis, args=(q,))
     thread.start()
