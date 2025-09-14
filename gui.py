@@ -1,4 +1,4 @@
-from cube_plotter import plotRubiks3D, createFig
+from cube_plotter import plotRubiks3D, createFig, Axes3D
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 from cube import Cube
 from cube_scanner import CubeScanner
@@ -15,11 +15,17 @@ faceNormals = [
     ("Orange", [0, 1, 0]), 
 ]
 
-def getRelativeFaces(ax):
-    # Convert azim/elev to a viewing vector
+def getRelativeFaces(ax: Axes3D) -> tuple[str, str]:
+    """Gets the relative top and front vectors when moving the cube in 3D. This is
+    used so that all the move buttons act relative to the front facing face.
+
+    Args:
+        ax (Axes3D): The current axis
+    """
+
     azimRad = np.deg2rad(ax.azim)
     elevRad = np.deg2rad(ax.elev)
-    # Spherical to Cartesian
+
     view = np.array([
         np.cos(elevRad) * np.sin(azimRad),  # x
         np.cos(elevRad) * np.cos(azimRad),  # y
@@ -40,7 +46,7 @@ def getRelativeFaces(ax):
     return front, top
 
 class GUI:
-    def __init__(self, cube: Cube):
+    def __init__(self, cube: Cube) -> None:
         self.cube = cube
         self.canvas = None
         self.fig, self.ax = createFig()
@@ -52,13 +58,12 @@ class GUI:
         self.mainloopStarted = False
 
     def plot3D(self) -> None:
-        """
-        Plots the cube in 3D.
-        """
+        """Plots the cube in 3D, using a matplotlib window for the cube."""
         self.fig, self.ax = plotRubiks3D(self.cube.getPlottingList(),self.ax, self.fig)
         self.canvas.draw()
 
     def solveCube(self) -> None:
+        """Solves the cube, and creates a TopLevel window with the moves to solve the cube."""
         self.cube.solve()
         moves = " ".join(self.cube.optimisedMoves)
 
@@ -159,7 +164,8 @@ class GUI:
         top.grab_set()
         top.focus_force()
 
-    def playVideo(self) -> None:
+    def startScan(self) -> None:
+        """Starts scanning the cube from the webcam and embeds it in the tkinter window."""
         for widget in self.tk.winfo_children():
             widget.destroy()
 
@@ -187,12 +193,11 @@ class GUI:
         end_btn = tk.Button(btn_row, text="End Scan", font=('Arial', 13), bg='lightgreen', command=end_scan)
         end_btn.pack(side=tk.LEFT, padx=5)
 
-
     def createTkWindow(self) -> None:
+        """Initialises the tk window, as well as all frames, buttons and the cube display."""
         for widget in self.tk.winfo_children():
             widget.destroy()
 
-        # Create main horizontal container using pack
         main_container = tk.Frame(self.tk)
         main_container.pack(fill=tk.BOTH, expand=True, padx=10, pady=10)
 
@@ -274,7 +279,7 @@ class GUI:
             bg='lightyellow',
             activebackground='goldenrod',
             activeforeground='white',
-            command=lambda: [self.playVideo(), self.plot3D()]
+            command=lambda: [self.startScan(), self.plot3D()]
         )
         scan_btn.grid(row=1, column=0, columnspan=2, sticky='ew', pady=5)
 

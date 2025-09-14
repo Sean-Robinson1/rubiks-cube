@@ -27,38 +27,22 @@ COLOURS = [
     ('White', [133, 132, 132])
 ]
 
-NEW_COLOUR = [
-    ('Red', [115.84792873, 28.96458909, 15.96942809]),
-    ('Green', [26.49611181, 99.89769382, 24.83975062]),
-    ('Blue', [26.8278529, 36.01506922, 56.81930139]),
-    ('Yellow', [149.99169571, 128.34543791, 17.32632797]),
-    ('Orange', [198.48721967, 44.40870897, 10.94219687]),
-    ('White', [128.6238628, 114.52529497, 97.18683709]),
-]
-
 def distance(r, g, b, r2, g2, b2) -> float:
-    """
-    Gets the distance between two RGB colors
-    """
+    """Gets the distance between two RGB colors"""
     return (r - r2)**2 + (g - g2)**2 + (b - b2)**2
 
 def getClosestColourName(colour: tuple[float, float, float]) -> str:
-    """
-    Gets the name of the closest color to the given RGB values.
-    """
-    # Convert the RGB values to a tuple
+    """Gets the name of the closest color to the given RGB values."""
     r, g, b = colour[0],colour[1],colour[2]
 
-    # Find the closest color match
     closestColour = min(COLOURS, key=lambda x: distance(r, g, b, *x[1]))
 
-    # Return the color name
     return closestColour[0]
 
 def displayFace(image: np.ndarray, colourList: list[list]) -> np.ndarray:
-    """
-    Displays a map of all the faces of the cube which have been detected.
-    """
+    """Displays a map of all the faces of the cube which have been detected."""
+    
+    # sizes of squares
     width = 21
     jump = 2
 
@@ -119,15 +103,16 @@ class CubeScanner:
         self.running = True
         self.photo = None
         
-        self.update_frame()
+        self.updateFrame()
 
-    def update_frame(self):
+    def updateFrame(self) -> None:
+        """Gets a frame from the VideoCapture and then tries to find a rubiks cube in 
+        the image, extract the colours and add it to the list of found faces."""
         if not self.running:
             if self.vid.isOpened():
                 self.vid.release()
             return
 
-        # Check if label still exists
         if not self.videoLabel.winfo_exists():
             self.running = False
             if self.vid.isOpened():
@@ -137,7 +122,7 @@ class CubeScanner:
         ret, frame = self.vid.read()
         if not ret:
             if self.running:
-                self.videoLabel.after(10, self.update_frame)
+                self.videoLabel.after(10, self.updateFrame)
             return
 
         blurred = cv2.cvtColor(frame,cv2.COLOR_BGR2GRAY)
@@ -216,9 +201,10 @@ class CubeScanner:
 
         # Schedule next frame only if still running and label exists
         if self.running and self.videoLabel.winfo_exists():
-            self.videoLabel.after(10, self.update_frame)
+            self.videoLabel.after(10, self.updateFrame)
 
-    def stop(self):
+    def stop(self) -> None:
+        """Stops the webcam recording and releases the video."""
         self.running = False
         if hasattr(self, 'vid') and self.vid.isOpened():
             self.vid.release()
