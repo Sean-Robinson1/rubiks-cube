@@ -1,8 +1,8 @@
 import cv2
 import numpy as np
 from tkinter import *
+from PIL import Image, ImageTk
 from dominant_colour import getDominantColours
-from cube import Cube
 
 showCells = False
 calibrationMode = False
@@ -93,9 +93,9 @@ def extractColours(image: np.ndarray) -> list[list]:
     colours = []
     for cell in cells:
         counter += 1
-        if showCells:
-            cv2.namedWindow(f'cell {counter}',cv2.WINDOW_NORMAL)
-            cv2.imshow(f'cell {counter}',cell.copy())
+        # if showCells:
+        #     cv2.namedWindow(f'cell {counter}',cv2.WINDOW_NORMAL)
+        #     cv2.imshow(f'cell {counter}',cell.copy())
 
         dominantColour = getDominantColours(cell)[0]
         dominantColourName = getClosestColourName(dominantColour)
@@ -103,59 +103,61 @@ def extractColours(image: np.ndarray) -> list[list]:
         colours.append(dominantColourName)
     return colours
 
-def getFaces():
-    previous3 = [[1],[2],[3]]
-    previousFaces = {
-        'Red': [],
-        'Green': [],
-        'Blue': [],
-        'Yellow': [],
-        'Orange': [],
-        'White': [],
-    }
-    print("Starting camera...")
-    vid = cv2.VideoCapture(0)
-    
-    if not vid.isOpened():
-        print("Cannot open camera")
-        raise Exception("Cannot open camera")
-    
-    while True:
-        _, frame = vid.read()
+class CubeScanner:
+    def __init__(self, videoLabel: Label):
+        self.videoLabel = videoLabel
+        self.vid = cv2.VideoCapture(0)
+        self.previous3 = [[1],[2],[3]]
+        self.previousFaces = {
+            'Red': [],
+            'Green': [],
+            'Blue': [],
+            'Yellow': [],
+            'Orange': [],
+            'White': [],
+        }
+        self.running = True
+        self.photo = None
+        
+        self.update_frame()
+
+    def update_frame(self):
+        if not self.running:
+            if self.vid.isOpened():
+                self.vid.release()
+            return
+
+        # Check if label still exists
+        if not self.videoLabel.winfo_exists():
+            self.running = False
+            if self.vid.isOpened():
+                self.vid.release()
+            return
+
+        ret, frame = self.vid.read()
+        if not ret:
+            if self.running:
+                self.videoLabel.after(10, self.update_frame)
+            return
 
         blurred = cv2.cvtColor(frame,cv2.COLOR_BGR2GRAY)
         blurred = cv2.GaussianBlur(blurred, (5, 5), cv2.BORDER_DEFAULT)
-
         canny = cv2.Canny(blurred, 20, 40)
-
         kernel = np.ones((3,3), np.uint8)
         dilated = cv2.dilate(canny, kernel, iterations=2)
-
         dilatedFrame = dilated
-
-        cv2.namedWindow('img2',cv2.WINDOW_NORMAL)
-        cv2.imshow('img2',dilatedFrame)
 
         contours,_ = cv2.findContours(dilatedFrame.copy(), cv2.RETR_TREE,cv2.CHAIN_APPROX_SIMPLE)
         contours = sorted(contours, key=cv2.contourArea, reverse=True)
 
         output = frame.copy()
-        cv2.namedWindow('Puzzle Outline',cv2.WINDOW_NORMAL)
-
-        # loop over the contours
         counter = 12
         faceContours = []
         for c in contours:
-            # approximate the contour
             peri = cv2.arcLength(c, True)
             approx = cv2.approxPolyDP(c, 0.05 * peri, True)
-
             minX, minY, width, height = cv2.boundingRect(approx)
-
             aspectRatio = width / height
-            
-            # if our approximated contour has four points, and seems like a square,
-            # we can assume we have found one of the 9 cells on a face
             if len(approx) == 4 and 2000 > cv2.contourArea(approx) > 300 and 0.8 < aspectRatio < 1.2:        
                 counter -= 1
                 if counter == 0:
@@ -173,73 +175,65 @@ def getFaces():
                         faceCornersX.append(faceContours[i][ii][0][0])
                         faceCornersY.append(faceContours[i][ii][0][1])
 
-            if len(faceCornersX) < 4 or len(faceCornersY) < 4:
-                continue    
+            if len(faceCornersX) >= 4 and len(faceCornersY) >= 4:
+                areaRect = (max(faceCornersX) - min(faceCornersX)) * (max(faceCornersY) - min(faceCornersY))
+                maxX, maxY = max(faceCornersX), max(faceCornersY)
+                minX, minY = min(faceCornersX), min(faceCornersY)
 
-            areaRect = (max(faceCornersX) - min(faceCornersX)) * (max(faceCornersY) - min(faceCornersY))
-            maxX, maxY = max(faceCornersX), max(faceCornersY)
-            minX, minY = min(faceCornersX), min(faceCornersY)
+                if areaRect * 0.45 < avgArea * 9 < areaRect * 1.1:
+                    if (max(faceCornersX) - min(faceCornersX)) * 0.8 < max(faceCornersY) - min(faceCornersY) < 1.2 * (max(faceCornersX) - min(faceCornersX)):
+                        cv2.rectangle(output,(min(faceCornersX),min(faceCornersY)),(max(faceCornersX),max(faceCornersY)),(0,0,255),3)
+                        normalOutput = frame.copy()
+                        cropped = normalOutput[minY:maxY,minX:maxX]
+                        colours = extractColours(cropped)
+                        self.previous3.append(colours)
+                        if self.previous3[-1] == self.previous3[-2] == self.previous3[-3]:
+                            output = displayFace(output,self.previous3[-1])
+                            self.previousFaces[colours[4]] = colours
 
-            if areaRect * 0.45 < avgArea * 9 < areaRect * 1.1:
-                if (max(faceCornersX) - min(faceCornersX)) * 0.8 < max(faceCornersY) - min(faceCornersY) < 1.2 * (max(faceCornersX) - min(faceCornersX)):
-                    cv2.rectangle(output,(min(faceCornersX),min(faceCornersY)),(max(faceCornersX),max(faceCornersY)),(0,0,255),3)
-        
-                    normalOutput = frame.copy()
-                    cv2.namedWindow('cropped',cv2.WINDOW_NORMAL)
-                    cropped = normalOutput[minY:maxY,minX:maxX]
-                    cv2.imshow("cropped", cropped)
-        
-                    colours = extractColours(cropped)
-
-                    print(colours)
-                    previous3.append(colours)
-
-                    if previous3[-1] == previous3[-2] == previous3[-3]:
-                        output = displayFace(output,previous3[-1])
-                        previousFaces[colours[4]] = colours
-
-
-        for colourName,colourRGB in previousFaces.items():
+        for _,colourRGB in self.previousFaces.items():
             if colourRGB != []:
                 output = displayFace(output,colourRGB)
-    
-        cv2.imshow("Puzzle Outline", output)
 
-        if cv2.waitKey(1) & 0xFF == ord('x'):
-            break
+        w = round(self.videoLabel.winfo_width() * 0.9)
+        h = round(self.videoLabel.winfo_height() * 0.9)
+        if w <= 1 or h <= 1:
+            h, w = output.shape[:2]
 
-    vid.release()
-    cv2.destroyAllWindows()
+        frame_resized = cv2.resize(output, (w, h), interpolation=cv2.INTER_LINEAR)
 
-    return previousFaces
+        try:
+            rgb_image = cv2.cvtColor(frame_resized, cv2.COLOR_BGR2RGB)
+            pil_image = Image.fromarray(rgb_image)
+            tk_image = ImageTk.PhotoImage(image=pil_image, master=self.videoLabel)
 
-def getCubeString() -> str:
-    faces = getFaces()
-    cubeString = ''
-    for face in ['White','Green','Red','Blue','Orange','Yellow']:
-        for colour in faces[face]:
-            cubeString += colour[0]
-    print(cubeString)
-    return cubeString
+            # Keep a reference to prevent garbage collection
+            self.photo = tk_image
+            self.videoLabel.config(image=self.photo)
+            
+        except Exception as e:
+            print(f"Error updating image: {e}")
 
-def main():
-    cubeString = getCubeString(getFaces())
+        # Schedule next frame only if still running and label exists
+        if self.running and self.videoLabel.winfo_exists():
+            self.videoLabel.after(10, self.update_frame)
 
-    cube = Cube(cubeString)
-    cube.plot3D()
+    def stop(self):
+        self.running = False
+        if hasattr(self, 'vid') and self.vid.isOpened():
+            self.vid.release()
 
-    while True:
-        turn = input('Rotation: ')
-        if turn == 'randomise':
-            sequence = cube.randomiseCube()
-            print(sequence)
-            cube.displayCube() 
-        elif turn == 'solve':
-            cube.solve()
-            print(cube.movesMade)
-        else:      
-            cube.executeSequence(turn,True)
-        cube.plot3D()
+    def getCubeString(self) -> str:
+        """
+        Returns the cube string representation of the scanned cube.
+        """
+        cubeString = ''
+        for face in ['White', 'Green', 'Red', 'Blue', 'Orange', 'Yellow']:
+            if self.previousFaces[face] == []:
+                return ''
+            for colour in self.previousFaces[face]:
+                cubeString += colour[0]
 
-if __name__ == "__main__":
-    main()
+        print(cubeString)
+        
+        return cubeString

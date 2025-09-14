@@ -6,7 +6,7 @@ from cube_utils import rotate, checkMask, printAnalysis, optimiseMoves
 SOLVED_MASK = 'WWWWWWWWWGGGGGGGGGRRRRRRRRRBBBBBBBBBOOOOOOOOOYYYYYYYYY'
 
 class Cube:
-    def __init__(self,startStr: str = None) -> None:
+    def __init__(self, startStr: str = None) -> None:
         #top = 0, left = 1, front = 2, right = 3, back = 4, bottom = 5
         #top = white, left = green, front = red, right = blue, back = orange, bottom = yellow
         self.faceNumToColour = {0:'W',1:'G',2:'R',3:'B',4:'O',5:'Y'}
@@ -26,8 +26,8 @@ class Cube:
                 for square in row:
                     outputString += square
         return outputString
-    
-    def __getitem__(self,index: int) -> list[list[str]]:
+
+    def __getitem__(self, index: int) -> list[list[str]]:
         return self.faces[index]
     
     @property

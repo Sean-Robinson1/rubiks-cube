@@ -1,7 +1,7 @@
 from cube_plotter import plotRubiks3D, createFig
-from cube_scanner import getCubeString
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 from cube import Cube
+from cube_scanner import CubeScanner
 import tkinter as tk
 import numpy as np
 
@@ -42,8 +42,14 @@ def getRelativeFaces(ax):
 class GUI:
     def __init__(self, cube: Cube):
         self.cube = cube
-        self.fig, self.ax = createFig()
         self.canvas = None
+        self.fig, self.ax = createFig()
+        self.scanner = None
+        self.tk = tk.Tk()
+        self.tk.title("Rubik's Cube")
+        self.w, self.h = self.tk.winfo_screenwidth(), self.tk.winfo_screenheight()
+        self.tk.geometry(f"{self.w//2}x{self.h//2}")
+        self.mainloopStarted = False
 
     def plot3D(self) -> None:
         """
@@ -52,57 +58,174 @@ class GUI:
         self.fig, self.ax = plotRubiks3D(self.cube.getPlottingList(),self.ax, self.fig)
         self.canvas.draw()
 
-    def createTkWindow(self) -> None:
-        self.tk = tk.Tk()
-        self.tk.title("Rubik's Cube")
+    def solveCube(self) -> None:
+        self.cube.solve()
+        moves = " ".join(self.cube.optimisedMoves)
 
-        w, h = self.tk.winfo_screenwidth(), self.tk.winfo_screenheight()
-        self.tk.geometry(f"{w//2}x{h//2}")
+        top = tk.Toplevel(self.tk)
+        top.title("Solution")
+        top.transient(self.tk)
+        top.resizable(False, False)
+        top.configure(bg='#f8f9fa')
+
+        w, h = 600, 380
+        try:
+            x = self.tk.winfo_rootx() + (self.tk.winfo_width() - w) // 2
+            y = self.tk.winfo_rooty() + (self.tk.winfo_height() - h) // 2
+        except Exception:
+            x = y = 100
+        top.geometry(f"{w}x{h}+{x}+{y}")
+
+        frame = tk.Frame(top, bg='#f8f9fa', padx=14, pady=12)
+        frame.pack(fill=tk.BOTH, expand=True)
+
+        header = tk.Frame(frame, bg='#f8f9fa')
+        header.pack(fill=tk.X, pady=(0, 8))
+        tk.Label(header, text="Cube Solution", bg='#f8f9fa', fg='#111', font=('Segoe UI', 14, 'bold')).pack(side=tk.LEFT)
+        tk.Label(header, text=f"{len(self.cube.optimisedMoves)} moves", bg='#f8f9fa', fg='#666', font=('Segoe UI', 10)).pack(side=tk.RIGHT)
+
+        btn_frame = tk.Frame(frame, bg='#f8f9fa', height=70)
+        btn_frame.pack(side=tk.BOTTOM, fill=tk.X, pady=(10, 0))
+        btn_frame.pack_propagate(False)
+
+        text_frame = tk.Frame(frame, bg='#ffffff', relief=tk.FLAT, bd=1)
+        text_frame.pack(fill=tk.BOTH, expand=True)
+        scrollbar = tk.Scrollbar(text_frame)
+        scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
+        text = tk.Text(
+            text_frame,
+            wrap='word',
+            yscrollcommand=scrollbar.set,
+            font=("Consolas", 11),
+            bg='white',
+            fg='#222',
+            relief=tk.FLAT,
+            bd=0,
+            padx=10,
+            pady=8
+        )
+        text.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+        scrollbar.config(command=text.yview)
+
+        text.insert("1.0", moves if moves else "(no moves)")
+        text.config(state='disabled')
+
+        def copy_moves():
+            try:
+                self.tk.clipboard_clear()
+                self.tk.clipboard_append(moves)
+            except Exception:
+                pass
+
+        def close():
+            top.grab_release()
+            top.destroy()
+
+        center_row = tk.Frame(btn_frame, bg='#f8f9fa')
+        center_row.pack(expand=True)
+
+        copy_btn = tk.Button(
+            center_row,
+            text="Copy",
+            command=copy_moves,
+            width=16,
+            height=2,
+            bg='#2B7CFF',
+            fg='white',
+            activebackground='#1A5FD6',
+            font=('Segoe UI', 11, 'bold'),
+            bd=0,
+            relief=tk.FLAT,
+            cursor='hand2'
+        )
+        copy_btn.pack(side=tk.LEFT, padx=12)
+
+        close_btn = tk.Button(
+            center_row,
+            text="Close",
+            command=close,
+            width=16,
+            height=2,
+            bg='#E9ECEF',
+            fg='#222',
+            activebackground='#DDE3EA',
+            font=('Segoe UI', 11, 'bold'),
+            bd=0,
+            relief=tk.FLAT,
+            cursor='hand2'
+        )
+        close_btn.pack(side=tk.LEFT, padx=12)
+
+        top.grab_set()
+        top.focus_force()
+
+    def playVideo(self) -> None:
+        for widget in self.tk.winfo_children():
+            widget.destroy()
+
+        self.video_label = tk.Label(self.tk)
+        self.video_label.pack(fill=tk.BOTH, expand=True, padx=10, pady=10)
+
+        self.scanner = CubeScanner(self.video_label)
+        btn_row = tk.Frame(self.tk)
+        btn_row.pack(side=tk.BOTTOM, pady=10)
+
+        def cancel_scan():
+            self.scanner.stop()
+            self.fig, self.ax = createFig()
+            self.createTkWindow()
+
+        def end_scan():
+            self.scanner.stop()
+            self.fig, self.ax = createFig()
+            self.cube.initialiseFaces(self.scanner.getCubeString())
+            self.createTkWindow()
+
+        cancel_btn = tk.Button(btn_row, text="Cancel", font=('Arial', 13), bg='lightcoral', command=cancel_scan)
+        cancel_btn.pack(side=tk.LEFT, padx=5)
+
+        end_btn = tk.Button(btn_row, text="End Scan", font=('Arial', 13), bg='lightgreen', command=end_scan)
+        end_btn.pack(side=tk.LEFT, padx=5)
+
+
+    def createTkWindow(self) -> None:
+        for widget in self.tk.winfo_children():
+            widget.destroy()
 
         # Create main horizontal container using pack
         main_container = tk.Frame(self.tk)
         main_container.pack(fill=tk.BOTH, expand=True, padx=10, pady=10)
 
-        # Calculate dimensions for 60% canvas, 40% buttons split
-        canvas_width = int((w//2) * 0.6)  # 60% of window width for canvas
-        button_width = int((w//2) * 0.35)  # 35% for buttons, 5% for padding
-        
-        # Canvas frame on the left - fixed size
+        canvas_width = int((self.w//2) * 0.6)  
+        button_width = int((self.w//2) * 0.35) 
+
         canvas_frame = tk.Frame(main_container, bg='lightgray', width=canvas_width)
         canvas_frame.pack(side=tk.LEFT, fill=tk.Y)
-        canvas_frame.pack_propagate(False)  # Maintain fixed width
+        canvas_frame.pack_propagate(False)
         
-        # Create matplotlib canvas
         self.canvas = FigureCanvasTkAgg(self.fig, master=canvas_frame)
         self.canvas.get_tk_widget().pack(fill=tk.BOTH, expand=False)
         
         self.plot3D()
         self.ax.view_init(elev=210, azim=120)
 
-        # Button frame on the right - fixed width
         button_frame = tk.Frame(main_container, bg='white', width=button_width)
         button_frame.pack(side=tk.RIGHT, fill=tk.Y, padx=(20, 0))
-        button_frame.pack_propagate(False)  # Prevent frame from shrinking
+        button_frame.pack_propagate(False)
 
-        # Title for button section
         title_label = tk.Label(button_frame, text="Cube Rotations", 
                             font=('Arial', 14, 'bold'), bg='white')
         title_label.pack(pady=(10, 20))
 
         button_names = ["R", "L", "U", "D", "F", "B", "R'", "L'", "U'", "D'", "F'", "B'"]
-        button_funcs = [self.cube.rotateR, self.cube.rotateL, self.cube.rotateU, self.cube.rotateD, self.cube.rotateF, self.cube.rotateB, lambda: self.cube.rotateR(-1), lambda: self.cube.rotateL(-1), lambda: self.cube.rotateU(-1),
-                            lambda: self.cube.rotateD(-1), lambda: self.cube.rotateF(-1), lambda: self.cube.rotateB(-1)]
 
-         # Create button container with two columns
         button_container = tk.Frame(button_frame, bg='white')
         button_container.pack(fill=tk.BOTH, expand=True, padx=10)
         
-        # Configure two columns in button container
         button_container.grid_columnconfigure(0, weight=1)
         button_container.grid_columnconfigure(1, weight=1)
 
-        # Create buttons with better spacing
-        for i, (name, func) in enumerate(zip(button_names, button_funcs)):
+        for i, name in enumerate(button_names):
             btn = tk.Button(
                 button_container,
                 text=name,
@@ -116,7 +239,6 @@ class GUI:
             )
             btn.grid(row=i%6, column=i//6, padx=5, pady=5, sticky='nsew')
 
-        # Add some additional controls at the bottom
         control_frame = tk.Frame(button_frame, bg='white')
         control_frame.pack(side=tk.BOTTOM, fill=tk.X, padx=10, pady=20)
 
@@ -152,7 +274,7 @@ class GUI:
             bg='lightyellow',
             activebackground='goldenrod',
             activeforeground='white',
-            command=lambda: [self.cube.initialiseFaces(getCubeString()), self.plot3D()]
+            command=lambda: [self.playVideo(), self.plot3D()]
         )
         scan_btn.grid(row=1, column=0, columnspan=2, sticky='ew', pady=5)
 
@@ -163,6 +285,10 @@ class GUI:
             bg='lightgreen',
             activebackground='darkgreen',
             activeforeground='white',
-            command=lambda: [self.cube.solve(), self.plot3D()]
+            command=lambda: [self.solveCube(), self.plot3D()]
         )
         solve_btn.grid(row=2, column=0, columnspan=2, sticky='ew', pady=5)
+
+        if not self.mainloopStarted:
+            self.mainloopStarted = True
+            self.tk.mainloop()

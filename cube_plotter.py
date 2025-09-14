@@ -18,6 +18,7 @@ def plotRubiks3D(colours:list[list[str]], ax: Axes3D, fig: plt.Figure) -> tuple[
 
     counter = 0
 
+    # clears the axis for re-plotting
     ax.cla()
 
     # plots planes perpendicular to the z-axis (White/Yellow)
