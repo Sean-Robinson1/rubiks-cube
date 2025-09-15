@@ -3,10 +3,10 @@ import tkinter as tk
 import numpy as np
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 
-from constants import FACE_NORMALS
-from cube import Cube
-from cube_plotter import Axes3D, createFig, plotRubiks3D
-from cube_scanner import CubeScanner
+from .constants import FACE_NORMALS
+from .cube import Cube
+from .cube_plotter import Axes3D, createFig, plotRubiks3D
+from .cube_scanner import CubeScanner
 
 
 def getRelativeFaces(ax: Axes3D) -> tuple[str, str]:
@@ -55,9 +55,28 @@ class GUI:
         self.scanner = None
         self.tk = tk.Tk()
         self.tk.title("Rubik's Cube")
+        self.tk.protocol("WM_DELETE_WINDOW", self.on_close)
         self.w, self.h = self.tk.winfo_screenwidth(), self.tk.winfo_screenheight()
         self.tk.geometry(f"{self.w//2}x{self.h//2}")
         self.mainloopStarted = False
+
+    def on_close(self) -> None:
+        """Called when the main window is closed: stop scanner, release camera and exit."""
+        if getattr(self, "scanner", None):
+            try:
+                self.scanner.stop()
+            except Exception:
+                pass
+
+            try:
+                if hasattr(self.scanner, "vid") and self.scanner.vid is not None:
+                    if self.scanner.vid.isOpened():
+                        self.scanner.vid.release()
+            except Exception:
+                pass
+
+        self.tk.quit()
+        self.tk.destroy()
 
     def plot3D(self) -> None:
         """Plots the cube in 3D, using a matplotlib window for the cube."""
@@ -88,9 +107,9 @@ class GUI:
 
         header = tk.Frame(frame, bg="#f8f9fa")
         header.pack(fill=tk.X, pady=(0, 8))
-        tk.Label(
-            header, text="Cube Solution", bg="#f8f9fa", fg="#111", font=("Segoe UI", 14, "bold")
-        ).pack(side=tk.LEFT)
+        tk.Label(header, text="Cube Solution", bg="#f8f9fa", fg="#111", font=("Segoe UI", 14, "bold")).pack(
+            side=tk.LEFT
+        )
         tk.Label(
             header,
             text=f"{len(self.cube.optimisedMoves)} moves",
@@ -197,14 +216,10 @@ class GUI:
             self.cube.initialiseFaces(self.scanner.getCubeString())
             self.createTkWindow()
 
-        cancel_btn = tk.Button(
-            btn_row, text="Cancel", font=("Arial", 13), bg="lightcoral", command=cancel_scan
-        )
+        cancel_btn = tk.Button(btn_row, text="Cancel", font=("Arial", 13), bg="lightcoral", command=cancel_scan)
         cancel_btn.pack(side=tk.LEFT, padx=5)
 
-        end_btn = tk.Button(
-            btn_row, text="End Scan", font=("Arial", 13), bg="lightgreen", command=end_scan
-        )
+        end_btn = tk.Button(btn_row, text="End Scan", font=("Arial", 13), bg="lightgreen", command=end_scan)
         end_btn.pack(side=tk.LEFT, padx=5)
 
     def createTkWindow(self) -> None:
@@ -232,9 +247,7 @@ class GUI:
         button_frame.pack(side=tk.RIGHT, fill=tk.Y, padx=(20, 0))
         button_frame.pack_propagate(False)
 
-        title_label = tk.Label(
-            button_frame, text="Cube Rotations", font=("Arial", 14, "bold"), bg="white"
-        )
+        title_label = tk.Label(button_frame, text="Cube Rotations", font=("Arial", 14, "bold"), bg="white")
         title_label.pack(pady=(10, 20))
 
         button_names = ["R", "L", "U", "D", "F", "B", "R'", "L'", "U'", "D'", "F'", "B'"]

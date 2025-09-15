@@ -1,4 +1,4 @@
-from constants import STRING_ROTATION_MAPPINGS
+from .constants import STRING_ROTATION_MAPPINGS
 
 
 # these functions perform operations on the masks not the cube

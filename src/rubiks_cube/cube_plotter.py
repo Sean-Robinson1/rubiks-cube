@@ -18,9 +18,7 @@ def createFig() -> tuple[plt.Figure, Axes3D]:
     return fig, ax
 
 
-def plotRubiks3D(
-    colours: list[list[str]], ax: Axes3D, fig: plt.Figure
-) -> tuple[plt.Figure, Axes3D]:
+def plotRubiks3D(colours: list[list[str]], ax: Axes3D, fig: plt.Figure) -> tuple[plt.Figure, Axes3D]:
     """Plots an interactive 3D representation of a Rubik's Cube.
 
     Args:

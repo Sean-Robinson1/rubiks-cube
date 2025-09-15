@@ -4,8 +4,8 @@ import cv2
 import numpy as np
 from PIL import Image, ImageTk
 
-from constants import FACE_TO_POSITION, USUAL_COLOUR_VALUES
-from dominant_colour import getDominantColours
+from .constants import FACE_TO_POSITION, USUAL_COLOUR_VALUES
+from .dominant_colour import getDominantColours
 
 COLOURS = [
     ("Red", [205.27404537, 59.62644887, 44.40219895]),
@@ -171,11 +171,7 @@ class CubeScanner:
             approx = cv2.approxPolyDP(c, 0.05 * peri, True)
             minX, minY, width, height = cv2.boundingRect(approx)
             aspectRatio = width / height
-            if (
-                len(approx) == 4
-                and 2000 > cv2.contourArea(approx) > 300
-                and 0.8 < aspectRatio < 1.2
-            ):
+            if len(approx) == 4 and 2000 > cv2.contourArea(approx) > 300 and 0.8 < aspectRatio < 1.2:
                 counter -= 1
                 if counter == 0:
                     break
@@ -183,9 +179,7 @@ class CubeScanner:
                 cv2.drawContours(output, [approx], -1, (255, 0, 0), 5)
 
         if len(faceContours) > 4:
-            avgArea = sum(
-                [cv2.contourArea(faceContours[i]) for i in range(len(faceContours))]
-            ) / len(faceContours)
+            avgArea = sum([cv2.contourArea(faceContours[i]) for i in range(len(faceContours))]) / len(faceContours)
             faceCornersX = []
             faceCornersY = []
             for i in range(len(faceContours)):
@@ -195,9 +189,7 @@ class CubeScanner:
                         faceCornersY.append(faceContours[i][ii][0][1])
 
             if len(faceCornersX) >= 4 and len(faceCornersY) >= 4:
-                areaRect = (max(faceCornersX) - min(faceCornersX)) * (
-                    max(faceCornersY) - min(faceCornersY)
-                )
+                areaRect = (max(faceCornersX) - min(faceCornersX)) * (max(faceCornersY) - min(faceCornersY))
                 maxX, maxY = max(faceCornersX), max(faceCornersY)
                 minX, minY = min(faceCornersX), min(faceCornersY)
 

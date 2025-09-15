@@ -11,14 +11,13 @@ jobs:
         with:
           python-version: "3.11"
 
-      - name: Install pre-commit
-        run: pip install pre-commit
-
-      - name: Install dependencies
-        run: pip install -r requirements.txt
+      - name: Install project and test tools
+        run: |
+          pip install -e .
+          pip install pre-commit
 
       - name: Run pre-commit hooks (format/lint)
         run: pre-commit run --all-files --show-diff-on-failure
 
-      - name: Run ci_test.py
-        run: python ci_test.py
+      - name: Run benchmark / CI test
+        run: python tests/ci_test.py

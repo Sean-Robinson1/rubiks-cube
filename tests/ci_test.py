@@ -1,7 +1,7 @@
 import queue
 from threading import Thread
 
-from cube import Cube
+from rubiks_cube import Cube
 
 TIMEOUT = 45  # seconds
 

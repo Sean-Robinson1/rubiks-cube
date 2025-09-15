@@ -2,8 +2,8 @@ import copy
 import random
 import time
 
-from constants import *
-from cube_utils import checkMask, optimiseMoves, printAnalysis, rotate
+from .constants import *
+from .cube_utils import checkMask, optimiseMoves, printAnalysis, rotate
 
 
 class Cube:
@@ -574,9 +574,7 @@ class Cube:
 
             if len(toRemove) > 0:
                 recurseMasks = set(map(lambda x: self.combineMasks(x, removed), recurseMasks))
-                insertionMasks = set(
-                    map(lambda x: (x[0], self.combineMasks(x[1], removed), x[2]), insertionMasks)
-                )
+                insertionMasks = set(map(lambda x: (x[0], self.combineMasks(x[1], removed), x[2]), insertionMasks))
 
             recurseMasks = set(filter(lambda x: not self.checkMask(x), recurseMasks))
 
@@ -601,9 +599,7 @@ class Cube:
             for mask in F2L_CORNERS_SOLVED_MASKS:
                 if self.checkMask(mask[1]):
                     filtered = filter(lambda x: x[0][0] != mask[0], insertionMasks)
-                    insertionMasks = list(
-                        map(lambda a: (a[0], self.combineMasks(a[1], mask[1])), filtered)
-                    )
+                    insertionMasks = list(map(lambda a: (a[0], self.combineMasks(a[1], mask[1])), filtered))
                     correctPieces += 1
 
             if correctPieces == 4:
@@ -658,9 +654,7 @@ class Cube:
             for mask in solvedMasks:
                 if self.checkMask(mask[1]):
                     filtered = filter(lambda x: sorted(x[0]) != sorted(mask[0]), insertionMasks)
-                    insertionMasks = list(
-                        map(lambda a: (a[0], self.combineMasks(a[1], mask[1])), filtered)
-                    )
+                    insertionMasks = list(map(lambda a: (a[0], self.combineMasks(a[1], mask[1])), filtered))
                     correctPieces += 1
 
             if correctPieces == 4:
@@ -732,9 +726,7 @@ class Cube:
                 face2 = notMatchingFaces[1]
                 if self.getOppositeFace(face1) == face2:
                     self.convertSequenceFromFace(face1, "D" + YELLOW_EDGES_INSERTION_ALGORITHM)
-                    self.convertSequenceFromFace(
-                        self.getLeftFace(face1), YELLOW_EDGES_INSERTION_ALGORITHM
-                    )
+                    self.convertSequenceFromFace(self.getLeftFace(face1), YELLOW_EDGES_INSERTION_ALGORITHM)
                 else:
                     if self.getLeftFace(face1) == face2:
                         self.convertSequenceFromFace(face2, YELLOW_EDGES_INSERTION_ALGORITHM)
@@ -837,9 +829,7 @@ class Cube:
 
         return []
 
-    def findMasksRecursion(
-        self, masks: list[str], depth: int, state: str, cache: dict
-    ) -> list[str] | None:
+    def findMasksRecursion(self, masks: list[str], depth: int, state: str, cache: dict) -> list[str] | None:
         """Performs DFS until a solution is found or the maximum depth is reached. Has some optimisations.
 
         Args:
@@ -913,9 +903,7 @@ class Cube:
 
         return out
 
-    def analyseSolves(
-        self, numSolves: int = 100, displayAllTimes: bool = True, displayStats: bool = True
-    ) -> dict:
+    def analyseSolves(self, numSolves: int = 100, displayAllTimes: bool = True, displayStats: bool = True) -> dict:
         """Repeatedly randomises and solves the cube, tracking various statistics about the solves.
 
         Args:

@@ -1,5 +1,5 @@
-from cube import Cube
-from gui import GUI
+from .cube import Cube
+from .gui import GUI
 
 
 def main() -> None:
