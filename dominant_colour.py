@@ -1,7 +1,8 @@
 import cv2
 import numpy as np
 
-def getDominantColours(image: np.ndarray, numClusters: int=2) -> list[tuple]:
+
+def getDominantColours(image: np.ndarray, numClusters: int = 2) -> list[tuple]:
     """
     Finds the dominant colours in an image
 

@@ -1,19 +1,21 @@
+import copy
 import random
 import time
-import copy
-from cube_utils import rotate, checkMask, printAnalysis, optimiseMoves
+
 from constants import *
+from cube_utils import checkMask, optimiseMoves, printAnalysis, rotate
+
 
 class Cube:
     def __init__(self, startStr: str = None) -> None:
         self.faces: list[list[str]] = [[[colour] * 3 for _ in range(3)] for colour in COLOURS]
         self.initialiseFaces(startStr)
-        self.calculateFaces('R','W')
+        self.calculateFaces("R", "W")
 
         self.movesMade = []
 
     def __str__(self) -> str:
-        outputString = ''
+        outputString = ""
         for face in range(6):
             for row in self.faces[face]:
                 for square in row:
@@ -22,21 +24,21 @@ class Cube:
 
     def __getitem__(self, index: int) -> list[list[str]]:
         return self.faces[index]
-    
+
     @property
     def optimisedMoves(self) -> list[str]:
         return optimiseMoves(self.movesMade)
-    
+
     def initialiseFaces(self, faceStr: str | None) -> None:
         """Initialises the faces of the cube from a string representation.
-        
+
         Args:
             faceStr (str | None): A string of length 54 representing the cube's faces.
         """
         if faceStr:
             self.faces = []
             counter = 0
-            for _ in range(0,6):
+            for _ in range(0, 6):
                 face = []
                 for ii in range(3):
                     face.append([])
@@ -48,7 +50,7 @@ class Cube:
 
     def calculateFaces(self, front: str, top: str) -> None:
         """Calculates faces relative to a chosen front face and a chosen top face.
-        
+
         Note - this assumes the two faces are not opposites.
 
         Args:
@@ -64,66 +66,66 @@ class Cube:
 
     def getPlottingList(self) -> list[str]:
         """Returns a list of colours in the correct order to be plotted.
-        
+
         Returns:
             list[str]: A list of colours in the order required for plotting.
         """
         outputList = []
-        for face in [(0,-1,1),(5,1,1),(2,1,1),(4,1,-1),(1,1,-1),(3,1,1)]:
-            for row in self.faces[face[0]][::face[1]]:
-                for square in row[::face[2]]:
+        for face in [(0, -1, 1), (5, 1, 1), (2, 1, 1), (4, 1, -1), (1, 1, -1), (3, 1, 1)]:
+            for row in self.faces[face[0]][:: face[1]]:
+                for square in row[:: face[2]]:
                     outputList.append(PLOTTING_COLOUR_MAP[square])
         return outputList
 
     def displayCube(self, faces: list[list[str]] = None) -> None:
         """Displays the cube in the console. If no faces are provided, the current state of the cube is displayed.
-        
+
         Args:
             faces (list[list[str]], optional): A 2D list representing the cube's faces. Defaults to None.
         """
         if faces is None:
             faces = self.faces
 
-        print('\n\n')
-        
+        print("\n\n")
+
         for row in faces[0]:
-            print(10*' ',end='')
+            print(10 * " ", end="")
             for square in row:
-                print(COLOUR_TO_UNICODE.get(square,ERROR_CHAR),end=' ')
+                print(COLOUR_TO_UNICODE.get(square, ERROR_CHAR), end=" ")
             print()
 
         for row in range(3):
-            for faceIndex in range(1,5):
+            for faceIndex in range(1, 5):
                 face = faces[faceIndex]
 
                 for square in face[row]:
-                    print(COLOUR_TO_UNICODE.get(square,ERROR_CHAR),end=' ')
-                print(' ',end='')
+                    print(COLOUR_TO_UNICODE.get(square, ERROR_CHAR), end=" ")
+                print(" ", end="")
             print()
 
         for row in faces[5]:
-            print(10*' ',end='')
+            print(10 * " ", end="")
             for square in row:
-                print(COLOUR_TO_UNICODE.get(square,ERROR_CHAR),end=' ')
+                print(COLOUR_TO_UNICODE.get(square, ERROR_CHAR), end=" ")
             print()
 
     def randomiseCube(self) -> list[str]:
         """Randomises the cube to a valid state.
-        
+
         Returns:
             list[str]: The sequence of moves used to randomise the cube.
         """
-        turns = ['R','L','U','D','F','B']
+        turns = ["R", "L", "U", "D", "F", "B"]
         sequence = []
         for _ in range(50):
-            move = turns[random.randint(0,5)]
+            move = turns[random.randint(0, 5)]
 
             if random.random() > 0.5:
-                move += 'i'
+                move += "i"
 
             sequence.append(move)
-        
-        self.executeSequence(''.join(sequence))
+
+        self.executeSequence("".join(sequence))
         return sequence
 
     def workBackwards(self, sequence: list[str]) -> None:
@@ -134,117 +136,224 @@ class Cube:
         Args:
             sequence (list[str]): The sequence of moves that scrambled the cube.
         """
-        sequence2 = ''
-        for i in range(len(sequence)-1,-1,-1):
+        sequence2 = ""
+        for i in range(len(sequence) - 1, -1, -1):
             turn = sequence[i]
             print(turn)
 
             if len(turn) == 2:
                 sequence2 += turn[0]
             else:
-                sequence2 += turn + 'i'
+                sequence2 += turn + "i"
 
         self.executeSequence(sequence2)
 
     def rotateU(self, direction: int = 0) -> None:
         """Performs a rotation of the upper face.
-        
+
         Args:
-            direction (int, optional): The direction to rotate the face. 0 for clockwise, 1 for counter-clockwise. Defaults to 0.
+            direction (int, optional): The direction to rotate the face. 0 for clockwise,
+                                       1 for counter-clockwise. Defaults to 0.
         """
         if direction == 0:
-            self.faces[4][0],self.faces[1][0],self.faces[2][0],self.faces[3][0] = self.faces[1][0],self.faces[2][0],self.faces[3][0],self.faces[4][0]
+            self.faces[4][0], self.faces[1][0], self.faces[2][0], self.faces[3][0] = (
+                self.faces[1][0],
+                self.faces[2][0],
+                self.faces[3][0],
+                self.faces[4][0],
+            )
             self.rotateFace(0)
         else:
-            self.faces[1][0],self.faces[2][0],self.faces[3][0],self.faces[4][0] = self.faces[4][0],self.faces[1][0],self.faces[2][0],self.faces[3][0]
-            self.rotateFace(0,-1)
+            self.faces[1][0], self.faces[2][0], self.faces[3][0], self.faces[4][0] = (
+                self.faces[4][0],
+                self.faces[1][0],
+                self.faces[2][0],
+                self.faces[3][0],
+            )
+            self.rotateFace(0, -1)
 
-    def rotateD(self, direction:int = 0) -> None:
+    def rotateD(self, direction: int = 0) -> None:
         """Performs a rotation of the down face.
 
         Args:
-            direction (int, optional): The direction to rotate the face. 0 for clockwise, 1 for counter-clockwise. Defaults to 0.
+            direction (int, optional): The direction to rotate the face. 0 for clockwise,
+                                       1 for counter-clockwise. Defaults to 0.
         """
         if direction == 0:
-            self.faces[1][2],self.faces[2][2],self.faces[3][2],self.faces[4][2] = self.faces[4][2],self.faces[1][2],self.faces[2][2],self.faces[3][2]  
+            self.faces[1][2], self.faces[2][2], self.faces[3][2], self.faces[4][2] = (
+                self.faces[4][2],
+                self.faces[1][2],
+                self.faces[2][2],
+                self.faces[3][2],
+            )
             self.rotateFace(5)
         else:
-            self.faces[4][2],self.faces[1][2],self.faces[2][2],self.faces[3][2] = self.faces[1][2],self.faces[2][2],self.faces[3][2],self.faces[4][2]
-            self.rotateFace(5,-1)
+            self.faces[4][2], self.faces[1][2], self.faces[2][2], self.faces[3][2] = (
+                self.faces[1][2],
+                self.faces[2][2],
+                self.faces[3][2],
+                self.faces[4][2],
+            )
+            self.rotateFace(5, -1)
 
     def rotateF(self, direction: int = 0) -> None:
         """Performs a rotation of the front face.
 
         Args:
-            direction (int, optional): The direction to rotate the face. 0 for clockwise, 1 for counter-clockwise. Defaults to 0.
+            direction (int, optional): The direction to rotate the face. 0 for clockwise,
+                                        1 for counter-clockwise. Defaults to 0.
         """
         if direction == 0:
             self.rotateFace(2)
 
             for i in range(3):
-                self.faces[1][2-i][2], self.faces[0][2][i], self.faces[3][i][0], self.faces[5][0][2-i] = self.faces[5][0][2-i], self.faces[1][2-i][2], self.faces[0][2][i], self.faces[3][i][0]
+                (
+                    self.faces[1][2 - i][2],
+                    self.faces[0][2][i],
+                    self.faces[3][i][0],
+                    self.faces[5][0][2 - i],
+                ) = (
+                    self.faces[5][0][2 - i],
+                    self.faces[1][2 - i][2],
+                    self.faces[0][2][i],
+                    self.faces[3][i][0],
+                )
 
         else:
-            self.rotateFace(2,-1)
+            self.rotateFace(2, -1)
 
             for i in range(3):
-                self.faces[1][2-i][2], self.faces[0][2][i], self.faces[3][i][0], self.faces[5][0][2-i] = self.faces[0][2][i], self.faces[3][i][0], self.faces[5][0][2-i], self.faces[1][2-i][2]
+                (
+                    self.faces[1][2 - i][2],
+                    self.faces[0][2][i],
+                    self.faces[3][i][0],
+                    self.faces[5][0][2 - i],
+                ) = (
+                    self.faces[0][2][i],
+                    self.faces[3][i][0],
+                    self.faces[5][0][2 - i],
+                    self.faces[1][2 - i][2],
+                )
 
     def rotateB(self, direction: int = 0) -> None:
         """Performs a rotation of the back face.
 
         Args:
-            direction (int, optional): The direction to rotate the face. 0 for clockwise, 1 for counter-clockwise. Defaults to 0.
+            direction (int, optional): The direction to rotate the face. 0 for clockwise,
+                                       1 for counter-clockwise. Defaults to 0.
         """
         if direction == 0:
             self.rotateFace(4)
             for i in range(3):
-                self.faces[1][2-i][0], self.faces[0][0][i], self.faces[3][i][2], self.faces[5][2][2-i] = self.faces[0][0][i], self.faces[3][i][2], self.faces[5][2][2-i], self.faces[1][2-i][0]
-           
+                (
+                    self.faces[1][2 - i][0],
+                    self.faces[0][0][i],
+                    self.faces[3][i][2],
+                    self.faces[5][2][2 - i],
+                ) = (
+                    self.faces[0][0][i],
+                    self.faces[3][i][2],
+                    self.faces[5][2][2 - i],
+                    self.faces[1][2 - i][0],
+                )
+
         else:
-            self.rotateFace(4,-1)
+            self.rotateFace(4, -1)
             for i in range(3):
-                self.faces[1][2-i][0], self.faces[0][0][i], self.faces[3][i][2], self.faces[5][2][2-i] = self.faces[5][2][2-i], self.faces[1][2-i][0], self.faces[0][0][i], self.faces[3][i][2]
+                (
+                    self.faces[1][2 - i][0],
+                    self.faces[0][0][i],
+                    self.faces[3][i][2],
+                    self.faces[5][2][2 - i],
+                ) = (
+                    self.faces[5][2][2 - i],
+                    self.faces[1][2 - i][0],
+                    self.faces[0][0][i],
+                    self.faces[3][i][2],
+                )
 
     def rotateR(self, direction: int = 0) -> None:
         """Performs a rotation of the right face.
 
         Args:
-            direction (int, optional): The direction to rotate the face. 0 for clockwise, 1 for counter-clockwise. Defaults to 0.
+            direction (int, optional): The direction to rotate the face. 0 for clockwise,
+                                       1 for counter-clockwise. Defaults to 0.
         """
         if direction == 0:
             self.rotateFace(3)
             for i in range(3):
-                self.faces[2][2-i][2], self.faces[0][2-i][2], self.faces[4][i][0], self.faces[5][2-i][2] = self.faces[5][2-i][2], self.faces[2][2-i][2], self.faces[0][2-i][2], self.faces[4][i][0]
-           
+                (
+                    self.faces[2][2 - i][2],
+                    self.faces[0][2 - i][2],
+                    self.faces[4][i][0],
+                    self.faces[5][2 - i][2],
+                ) = (
+                    self.faces[5][2 - i][2],
+                    self.faces[2][2 - i][2],
+                    self.faces[0][2 - i][2],
+                    self.faces[4][i][0],
+                )
+
         else:
-            self.rotateFace(3,-1)
+            self.rotateFace(3, -1)
             for i in range(3):
-                self.faces[2][2-i][2], self.faces[0][2-i][2], self.faces[4][i][0], self.faces[5][2-i][2] = self.faces[0][2-i][2], self.faces[4][i][0], self.faces[5][2-i][2], self.faces[2][2-i][2]   
+                (
+                    self.faces[2][2 - i][2],
+                    self.faces[0][2 - i][2],
+                    self.faces[4][i][0],
+                    self.faces[5][2 - i][2],
+                ) = (
+                    self.faces[0][2 - i][2],
+                    self.faces[4][i][0],
+                    self.faces[5][2 - i][2],
+                    self.faces[2][2 - i][2],
+                )
 
     def rotateL(self, direction: int = 0) -> None:
         """Performs a rotation of the left face.
 
         Args:
-            direction (int, optional): The direction to rotate the face. 0 for clockwise, 1 for counter-clockwise. Defaults to 0.
+            direction (int, optional): The direction to rotate the face. 0 for clockwise,
+                                       1 for counter-clockwise. Defaults to 0.
         """
         if direction == 0:
             self.rotateFace(1)
             for i in range(3):
-                self.faces[2][2-i][0], self.faces[0][2-i][0], self.faces[4][i][2], self.faces[5][2-i][0] = self.faces[0][2-i][0], self.faces[4][i][2], self.faces[5][2-i][0], self.faces[2][2-i][0]
+                (
+                    self.faces[2][2 - i][0],
+                    self.faces[0][2 - i][0],
+                    self.faces[4][i][2],
+                    self.faces[5][2 - i][0],
+                ) = (
+                    self.faces[0][2 - i][0],
+                    self.faces[4][i][2],
+                    self.faces[5][2 - i][0],
+                    self.faces[2][2 - i][0],
+                )
 
         else:
-            self.rotateFace(1,-1)
+            self.rotateFace(1, -1)
 
             for i in range(3):
-                self.faces[2][2-i][0], self.faces[0][2-i][0], self.faces[4][i][2], self.faces[5][2-i][0] = self.faces[5][2-i][0], self.faces[2][2-i][0], self.faces[0][2-i][0], self.faces[4][i][2]
+                (
+                    self.faces[2][2 - i][0],
+                    self.faces[0][2 - i][0],
+                    self.faces[4][i][2],
+                    self.faces[5][2 - i][0],
+                ) = (
+                    self.faces[5][2 - i][0],
+                    self.faces[2][2 - i][0],
+                    self.faces[0][2 - i][0],
+                    self.faces[4][i][2],
+                )
 
     def rotateFace(self, face: int = 2, direction: int = 0) -> None:
         """Rotates the specified face of the cube 90 degrees clockwise or anti-clockwise.
 
         Args:
             face (int, optional): The face to rotate. Defaults to 2 (the front face).
-            direction (int, optional): The direction to rotate the face. 0 for clockwise, 1 for counter-clockwise. Defaults to 0.
+            direction (int, optional): The direction to rotate the face. 0 for clockwise,
+                                       1 for counter-clockwise. Defaults to 0.
         """
         squares = []
 
@@ -271,16 +380,29 @@ class Cube:
 
         Args:
             sequence (str): A string representing the sequence of moves to execute.
-            useColours (bool, optional): If True, uses colour notation (R, G, W, Y, B, O) instead of face notation (R, L, U, D, F, B). Defaults to False.
+            useColours (bool, optional): If True, uses colour notation (R, G, W, Y, B, O) instead of
+                                         face notation (R, L, U, D, F, B). Defaults to False.
         """
-        seq = sequence.replace(' ', '')
+        seq = sequence.replace(" ", "")
 
         if not useColours:
-            letterToFunc = {'R': self.rotateR, 'L': self.rotateL, 'U': self.rotateU,
-                            'D': self.rotateD, 'F': self.rotateF, 'B': self.rotateB}
+            letterToFunc = {
+                "R": self.rotateR,
+                "L": self.rotateL,
+                "U": self.rotateU,
+                "D": self.rotateD,
+                "F": self.rotateF,
+                "B": self.rotateB,
+            }
         else:
-            letterToFunc = {'B': self.rotateR, 'G': self.rotateL, 'W': self.rotateU,
-                            'Y': self.rotateD, 'R': self.rotateF, 'O': self.rotateB}
+            letterToFunc = {
+                "B": self.rotateR,
+                "G": self.rotateL,
+                "W": self.rotateU,
+                "Y": self.rotateD,
+                "R": self.rotateF,
+                "O": self.rotateB,
+            }
 
         i = 0
         while i < len(seq):
@@ -299,7 +421,7 @@ class Cube:
                 j += 1
 
             elif j < len(seq) and seq[j].isdigit():
-                numStr = ''
+                numStr = ""
                 while j < len(seq) and seq[j].isdigit():
                     numStr += seq[j]
                     j += 1
@@ -308,7 +430,7 @@ class Cube:
                 except ValueError:
                     repeats = 1
 
-            moveLabel = ch + ('i' if direction == -1 else '')
+            moveLabel = ch + ("i" if direction == -1 else "")
             for _ in range(repeats):
                 func(direction)
                 self.movesMade.append(moveLabel)
@@ -326,18 +448,18 @@ class Cube:
         """
         stringVersion = str(self)
         for i in range(len(mask)):
-            if mask[i] != '.' and mask[i] != stringVersion[i]:
+            if mask[i] != "." and mask[i] != stringVersion[i]:
                 return False
         return True
 
     def getOppositeFace(self, colour: str) -> str:
         """Returns the opposite face relative to the given face colour
-        
+
         Args:
             colour (str): The colour of the face.
 
         Returns:
-            str: The colour of the opposite face.    
+            str: The colour of the opposite face.
         """
         return OPPOSITE_FACE_MAPPING.get(colour, None)
 
@@ -345,7 +467,7 @@ class Cube:
         """Returns the left face relative to the given face colour.
 
         Note - this assumes the white face is currently at the top.
-        
+
         Args:
             colour (str): The colour of the face.
 
@@ -375,7 +497,14 @@ class Cube:
         """
         out = ""
 
-        letterToFace = {'R': self.right, 'L': self.left, 'F': self.front, 'B': self.back, 'U': self.top, 'D': self.bottom}
+        letterToFace = {
+            "R": self.right,
+            "L": self.left,
+            "F": self.front,
+            "B": self.back,
+            "U": self.top,
+            "D": self.bottom,
+        }
 
         for letter in sequence:
             out += letterToFace.get(letter, letter)
@@ -394,7 +523,7 @@ class Cube:
         """
         out = ""
         for letter in sequence:
-            out += RELATIVE_FACE_MAPPING.get(face,{}).get(letter,letter)
+            out += RELATIVE_FACE_MAPPING.get(face, {}).get(letter, letter)
 
         self.executeSequence(out)
 
@@ -423,9 +552,9 @@ class Cube:
             toRemove = []
             for face, mask, pattern in insertionMasks:
                 if self.checkMask(mask):
-                    toRemove.append((face,mask,pattern))
+                    toRemove.append((face, mask, pattern))
                     recurseMasks.discard(mask)
-                    self.convertSequenceFromFace(face,pattern)
+                    self.convertSequenceFromFace(face, pattern)
 
             for item in toRemove:
                 insertionMasks.remove(item)
@@ -433,7 +562,7 @@ class Cube:
             toRemove = []
             for face, mask in solvedMasks:
                 if self.checkMask(mask):
-                    toRemove.append((face,mask))
+                    toRemove.append((face, mask))
                     numCorrect += 1
 
             if numCorrect == 4:
@@ -441,27 +570,29 @@ class Cube:
 
             for item in toRemove:
                 solvedMasks.remove(item)
-                removed = self.combineMasks(removed,item[1])
+                removed = self.combineMasks(removed, item[1])
 
             if len(toRemove) > 0:
-                recurseMasks = set(map(lambda x : self.combineMasks(x,removed),recurseMasks))
-                insertionMasks = set(map(lambda x : (x[0],self.combineMasks(x[1],removed),x[2]),insertionMasks))
+                recurseMasks = set(map(lambda x: self.combineMasks(x, removed), recurseMasks))
+                insertionMasks = set(
+                    map(lambda x: (x[0], self.combineMasks(x[1], removed), x[2]), insertionMasks)
+                )
 
-            recurseMasks = set(filter(lambda x : not self.checkMask(x), recurseMasks))
+            recurseMasks = set(filter(lambda x: not self.checkMask(x), recurseMasks))
 
-            moves = self.recurseToMasks(recurseMasks,5) 
+            moves = self.recurseToMasks(recurseMasks, 5)
 
             if moves is None:
                 for face, mask in solvedMasks:
                     if not self.checkMask(mask):
-                        self.convertSequenceFromFace(face,"FU'RU")
-                        
+                        self.convertSequenceFromFace(face, "FU'RU")
+
             if moves is not None:
                 self.executeSequence("".join(moves))
 
     def solveF2LCorners(self) -> None:
         """Solves all white corner pieces as part of the F2L (First 2 Layers) solution."""
-        
+
         insertionMasks = copy.deepcopy(F2L_CORNERS_INSERTION_MASKS)
 
         correctPieces = 0
@@ -469,13 +600,15 @@ class Cube:
             correctPieces = 0
             for mask in F2L_CORNERS_SOLVED_MASKS:
                 if self.checkMask(mask[1]):
-                    filtered = filter(lambda x: x[0][0] != mask[0],insertionMasks)
-                    insertionMasks = list(map(lambda a: (a[0],self.combineMasks(a[1],mask[1])),filtered))
+                    filtered = filter(lambda x: x[0][0] != mask[0], insertionMasks)
+                    insertionMasks = list(
+                        map(lambda a: (a[0], self.combineMasks(a[1], mask[1])), filtered)
+                    )
                     correctPieces += 1
 
             if correctPieces == 4:
                 break
-            
+
             inserted = False
             for mask in insertionMasks:
                 if self.checkMask(mask[1]):
@@ -485,13 +618,13 @@ class Cube:
             if inserted:
                 continue
 
-            recurseMasks = list(map(lambda x: x[1],insertionMasks))
-            moves = self.recurseToMasks(recurseMasks,2)
+            recurseMasks = list(map(lambda x: x[1], insertionMasks))
+            moves = self.recurseToMasks(recurseMasks, 2)
 
             if moves is None:
                 for face, mask in F2L_CORNERS_SOLVED_MASKS:
                     if not self.checkMask(mask):
-                        self.insertCorner(face+"_2")
+                        self.insertCorner(face + "_2")
                         break
             else:
                 self.executeSequence("".join(moves))
@@ -524,13 +657,15 @@ class Cube:
             correctPieces = 0
             for mask in solvedMasks:
                 if self.checkMask(mask[1]):
-                    filtered = filter(lambda x: sorted(x[0]) != sorted(mask[0]),insertionMasks)
-                    insertionMasks = list(map(lambda a: (a[0],self.combineMasks(a[1],mask[1])),filtered))
+                    filtered = filter(lambda x: sorted(x[0]) != sorted(mask[0]), insertionMasks)
+                    insertionMasks = list(
+                        map(lambda a: (a[0], self.combineMasks(a[1], mask[1])), filtered)
+                    )
                     correctPieces += 1
 
             if correctPieces == 4:
                 break
-            
+
             inserted = False
             for mask in insertionMasks:
                 if self.checkMask(mask[1]):
@@ -540,8 +675,8 @@ class Cube:
             if inserted:
                 continue
 
-            recurseMasks = list(map(lambda x: x[1],insertionMasks))
-            moves = self.recurseToMasks(recurseMasks,2)
+            recurseMasks = list(map(lambda x: x[1], insertionMasks))
+            moves = self.recurseToMasks(recurseMasks, 2)
 
             if moves is None:
                 for face, mask in solvedMasks:
@@ -563,18 +698,18 @@ class Cube:
 
         while not self.checkMask(YELLOW_CROSS_SOLVED_MASK):
             executed = False
-            for face,mask in YELLOW_L_MASKS:
+            for face, mask in YELLOW_L_MASKS:
                 if self.checkMask(mask):
-                    self.convertSequenceFromFace(face,alg) 
+                    self.convertSequenceFromFace(face, alg)
                     executed = True
                     break
 
-            for face,mask in YELLOW_LINE_MASKS:
+            for face, mask in YELLOW_LINE_MASKS:
                 if self.checkMask(mask):
-                    self.convertSequenceFromFace(face,alg) 
+                    self.convertSequenceFromFace(face, alg)
                     executed = True
                     break
-            
+
             if not executed:
                 self.executeSequence(alg)
 
@@ -583,44 +718,62 @@ class Cube:
         while not self.checkMask(YELLOW_EDGES_SOLVED_MASK):
             numMatches = 0
             notMatchingFaces = []
-            for face in range(1,5):
+            for face in range(1, 5):
                 if self.faces[face][1][1] == self.faces[face][2][1]:
-                    numMatches += 1 
+                    numMatches += 1
                 else:
                     notMatchingFaces.append(self.faces[face][1][1])
 
             if numMatches == 4:
-                return 
-            
+                return
+
             elif numMatches == 2:
                 face1 = notMatchingFaces[0]
                 face2 = notMatchingFaces[1]
-                if self.getOppositeFace(face1) == face2: 
+                if self.getOppositeFace(face1) == face2:
                     self.convertSequenceFromFace(face1, "D" + YELLOW_EDGES_INSERTION_ALGORITHM)
-                    self.convertSequenceFromFace(self.getLeftFace(face1),YELLOW_EDGES_INSERTION_ALGORITHM)
+                    self.convertSequenceFromFace(
+                        self.getLeftFace(face1), YELLOW_EDGES_INSERTION_ALGORITHM
+                    )
                 else:
                     if self.getLeftFace(face1) == face2:
                         self.convertSequenceFromFace(face2, YELLOW_EDGES_INSERTION_ALGORITHM)
                     else:
                         self.convertSequenceFromFace(face1, YELLOW_EDGES_INSERTION_ALGORITHM)
             else:
-                self.executeSequence('D')
+                self.executeSequence("D")
 
     def checkValidCorners(self) -> list[str]:
-        """Checks how many of the 4 corners for the yellow face are in the correct position. Returns a list of all valid face colours.
-        
+        """Checks how many of the 4 corners for the yellow face are in the correct position.
+
         Returns:
             list[str]: A list of face colours that have valid corners.
         """
         validCorners = []
-        if self.faces[2][2][2] in {'R','Y','B'} and self.faces[3][2][0] in {'R','Y','B'} and self.faces[5][0][2] in {'R','Y','B'}:
-            validCorners.append('B')
-        if self.faces[3][2][2] in {'O','Y','B'} and self.faces[4][2][0] in {'O','Y','B'} and self.faces[5][2][2] in {'O','Y','B'}:
-            validCorners.append('O')
-        if self.faces[4][2][2] in {'O','Y','G'} and self.faces[1][2][0] in {'O','Y','G'} and self.faces[5][2][0] in {'O','Y','G'}:
-            validCorners.append('G')
-        if self.faces[1][2][2] in {'R','Y','G'} and self.faces[2][2][0] in {'R','Y','G'} and self.faces[5][0][0] in {'R','Y','G'}:
-            validCorners.append('R')
+        if (
+            self.faces[2][2][2] in {"R", "Y", "B"}
+            and self.faces[3][2][0] in {"R", "Y", "B"}
+            and self.faces[5][0][2] in {"R", "Y", "B"}
+        ):
+            validCorners.append("B")
+        if (
+            self.faces[3][2][2] in {"O", "Y", "B"}
+            and self.faces[4][2][0] in {"O", "Y", "B"}
+            and self.faces[5][2][2] in {"O", "Y", "B"}
+        ):
+            validCorners.append("O")
+        if (
+            self.faces[4][2][2] in {"O", "Y", "G"}
+            and self.faces[1][2][0] in {"O", "Y", "G"}
+            and self.faces[5][2][0] in {"O", "Y", "G"}
+        ):
+            validCorners.append("G")
+        if (
+            self.faces[1][2][2] in {"R", "Y", "G"}
+            and self.faces[2][2][0] in {"R", "Y", "G"}
+            and self.faces[5][0][0] in {"R", "Y", "G"}
+        ):
+            validCorners.append("R")
 
         return validCorners
 
@@ -629,15 +782,15 @@ class Cube:
         validCorners = self.checkValidCorners()
 
         if len(validCorners) == 4:
-            return 
-        
+            return
+
         elif len(validCorners) == 0:
             self.executeSequence(YELLOW_CORNERS_INSERTION_ALGORITHM)
             self.solveYellowCorners()
 
         else:
             for _ in range(3):
-                self.convertSequenceFromFace(validCorners[0],YELLOW_CORNERS_INSERTION_ALGORITHM)
+                self.convertSequenceFromFace(validCorners[0], YELLOW_CORNERS_INSERTION_ALGORITHM)
                 if len(self.checkValidCorners()) == 4:
                     return
             self.solveYellowCorners()
@@ -645,14 +798,14 @@ class Cube:
     def final(self) -> None:
         """Finalizes the solution by orienting the last layer."""
         while not self.checkMask(SOLVED_MASK):
-            if self.faces[5][0][0] != 'Y':
-                while self.faces[5][0][0] != 'Y':
+            if self.faces[5][0][0] != "Y":
+                while self.faces[5][0][0] != "Y":
                     self.executeSequence(FINAL_STEP_ALGORITHM)
             self.executeSequence("D")
 
     def insertPiece(self, code: str) -> None:
         """Correctly inserts a piece into the middle layer.
-        
+
         Args:
             code (str): A string in the format "XY", where X is the first face colour and Y is the second face colour.
         """
@@ -660,19 +813,19 @@ class Cube:
         otherFace = code[1]
 
         if otherFace == self.getLeftFace(face):
-            self.convertSequenceFromFace(face, LEFT_FACE_INSERTION_ALGORITHM)    
+            self.convertSequenceFromFace(face, LEFT_FACE_INSERTION_ALGORITHM)
         else:
             self.convertSequenceFromFace(face, RIGHT_FACE_INSERTION_ALGORITHM)
 
     def recurseToMasks(self, masks: list[str], depth: int = 6) -> list[str] | None:
         """Calls a function to perform DFS until a solution is found or the maximum depth is reached.
-        
+
         Args:
             masks (list[str]): A list of masks to search for.
             depth (int, optional): The maximum depth to search. Defaults to 6.
 
         Returns:
-            list[str] | None: A list of moves to reach one of the masks, or None if no solution was found within the depth.
+            list[str] | None: A list of moves to reach one of the masks, or None if no solution was found.
         """
         cache = {}
         if not any(map(lambda x: self.checkMask(x), masks)):
@@ -684,9 +837,11 @@ class Cube:
 
         return []
 
-    def findMasksRecursion(self, masks: list[str], depth: int, state: str, cache: dict) -> list[str] | None:
+    def findMasksRecursion(
+        self, masks: list[str], depth: int, state: str, cache: dict
+    ) -> list[str] | None:
         """Performs DFS until a solution is found or the maximum depth is reached. Has some optimisations.
-                
+
         Args:
             masks (list[str]): A list of masks to search for.
             depth (int): The maximum depth to search.
@@ -694,30 +849,30 @@ class Cube:
             cache (dict): A dictionary to cache previously computed states.
 
         Returns:
-            list[str] | None: A list of moves to reach one of the masks, or None if no solution was found within the depth.
+            list[str] | None: A list of moves to reach one of the masks, or None if no solution was found.
         """
         cache_key = state
         if cache_key in cache:
             return cache[cache_key]
-        
+
         for mask in masks:
             if checkMask(mask, state):
                 cache[cache_key] = []
                 return []
-        
+
         if depth == 0:
             return None
 
         for move in range(12):
-            newstate = rotate(state,POSSIBLE_ROTATIONS[move])
-            result = self.findMasksRecursion(masks,depth-1,newstate,cache)
+            newstate = rotate(state, POSSIBLE_ROTATIONS[move])
+            result = self.findMasksRecursion(masks, depth - 1, newstate, cache)
 
             if result is not None:
                 cache[cache_key] = [POSSIBLE_ROTATIONS[move]] + result
                 return cache[cache_key]
-        
+
         return None
-    
+
     def showMask(self, mask: str) -> None:
         """Takes a mask and displays it in the terminal in a clear and easy to read way.
         This was used mainly for debugging the code and checking the masks I made
@@ -749,23 +904,26 @@ class Cube:
         Returns:
             str: The combined mask.
         """
-        out = ''
+        out = ""
         for i in range(len(mask1)):
-            if mask1[i] == '.':
+            if mask1[i] == ".":
                 out += mask2[i]
             else:
                 out += mask1[i]
 
         return out
-    
-    def analyseSolves(self, numSolves: int = 100, displayAllTimes: bool = True, displayStats: bool = True) -> dict:
+
+    def analyseSolves(
+        self, numSolves: int = 100, displayAllTimes: bool = True, displayStats: bool = True
+    ) -> dict:
         """Repeatedly randomises and solves the cube, tracking various statistics about the solves.
 
         Args:
             numSolves (int, optional): The number of solves to perform. Defaults to 100.
-            displayAllTimes (bool, optional): If True, prints the time taken and number of rotations for each solve. Defaults to True.
+            displayAllTimes (bool, optional): If True, prints the time taken and number of rotations for each solve.
+                                              Defaults to True.
             displayStats (bool, optional): If True, prints a summary of the statistics after all
-        
+
         Returns:
             dict: A dictionary containing various statistics about the solves.
         """
@@ -820,7 +978,7 @@ class Cube:
             totalTime += yellowFaceTime - startTime
             optimisedMoves = self.optimisedMoves
             if displayAllTimes:
-                print(f'Time Taken : {round(yellowFaceTime - startTime,2)} seconds')
+                print(f"Time Taken : {round(yellowFaceTime - startTime,2)} seconds")
                 print(f"Number of Rotations: {len(optimisedMoves)}")
 
             totalMoves += len(self.movesMade)
