@@ -1,4 +1,4 @@
-
+# General Constants
 SOLVED_MASK = 'WWWWWWWWWGGGGGGGGGRRRRRRRRRBBBBBBBBBOOOOOOOOOYYYYYYYYY'
 FACE_NUM_TO_COLOUR = {0:'W',1:'G',2:'R',3:'B',4:'O',5:'Y'}
 COLOUR_TO_FACE_NUM = {'W':0,'G':1,'R':2,'B':3,'O':4,'Y':5}
@@ -11,12 +11,48 @@ CLOCKWISE_TURNS = [2,5,8,7,6,3,0,1]
 ANTI_CLOCKWISE_TURNS = [6,3,0,1,2,5,8,7]
 SPIRAL_ORDER = [0,1,2,5,8,7,6,3]
 OPPOSITE_FACE_MAPPING = {'R': 'O', 'B': 'G', 'W': 'Y', 'Y': 'W', 'G': 'B', 'O': 'R'}
-# note this assumes white is on the top
 LEFT_FACE_MAPPING = {'R': 'G', 'G': 'O', 'O': 'B', 'B': 'R'}
 RIGHT_FACE_MAPPING = {'R': 'B', 'B': 'O', 'O': 'G', 'G': 'R'}
 RELATIVE_FACE_MAPPING = {'B':{'F':'R','R':'B','B':'L','L':'F'},'G':{'F':'L','R':'F','B':'R','L':'B'},'O':{'F':'B','R':'L','B':'F','L':'R'}}
+POSSIBLE_ROTATIONS = ["D","U","F","L","R","B","D'","U'","F'","L'","R'","B'"]
 
-## WHITE CROSS
+# cubeutils.py
+STRING_ROTATION_MAPPINGS = {'F': [0, 1, 2, 3, 4, 5, 17, 14, 11, 9, 10, 45, 12, 13, 46, 15, 16, 47, 24, 21, 18, 25, 22, 19, 26, 23, 20, 6, 28, 29, 7, 31, 32, 8, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 33, 30, 27, 48, 49, 50, 51, 52, 53], "F'": [0, 1, 2, 3, 4, 5, 27, 30, 33, 9, 10, 8, 12, 13, 7, 15, 16, 6, 20, 23, 26, 19, 22, 25, 18, 21, 24, 47, 28, 29, 46, 31, 32, 45, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 11, 14, 17, 48, 49, 50, 51, 52, 53], 'L': [44, 1, 2, 41, 4, 5, 38, 7, 8, 15, 12, 9, 16, 13, 10, 17, 14, 11, 0, 19, 20, 3, 22, 23, 6, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 51, 39, 40, 48, 42, 43, 45, 18, 46, 47, 21, 49, 50, 24, 52, 53], "L'": [18, 1, 2, 21, 4, 5, 24, 7, 8, 11, 14, 17, 10, 13, 16, 9, 12, 15, 45, 19, 20, 48, 22, 23, 51, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 6, 39, 40, 3, 42, 43, 0, 44, 46, 47, 41, 49, 50, 38, 52, 53], 'R': [0, 1, 20, 3, 4, 23, 6, 7, 26, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 47, 21, 22, 50, 24, 25, 53, 33, 30, 27, 34, 31, 28, 35, 32, 29, 8, 37, 38, 5, 40, 41, 2, 43, 44, 45, 46, 42, 48, 49, 39, 51, 52, 36], "R'": [0, 1, 42, 3, 4, 39, 6, 7, 36, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 2, 21, 22, 5, 24, 25, 8, 29, 32, 35, 28, 31, 34, 27, 30, 33, 53, 37, 38, 50, 40, 41, 47, 43, 44, 45, 46, 20, 48, 49, 23, 51, 52, 26], 'B': [29, 32, 35, 3, 4, 5, 6, 7, 8, 2, 10, 11, 1, 13, 14, 0, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 53, 30, 31, 52, 33, 34, 51, 42, 39, 36, 43, 40, 37, 44, 41, 38, 45, 46, 47, 48, 49, 50, 9, 12, 15], "B'": [15, 12, 9, 3, 4, 5, 6, 7, 8, 51, 10, 11, 52, 13, 14, 53, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 0, 30, 31, 1, 33, 34, 2, 38, 41, 44, 37, 40, 43, 36, 39, 42, 45, 46, 47, 48, 49, 50, 35, 32, 29], 'D': [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 42, 43, 44, 18, 19, 20, 21, 22, 23, 15, 16, 17, 27, 28, 29, 30, 31, 32, 24, 25, 26, 36, 37, 38, 39, 40, 41, 33, 34, 35, 51, 48, 45, 52, 49, 46, 53, 50, 47], "D'": [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 24, 25, 26, 18, 19, 20, 21, 22, 23, 33, 34, 35, 27, 28, 29, 30, 31, 32, 42, 43, 44, 36, 37, 38, 39, 40, 41, 15, 16, 17, 47, 50, 53, 46, 49, 52, 45, 48, 51], 'U': [6, 3, 0, 7, 4, 1, 8, 5, 2, 18, 19, 20, 12, 13, 14, 15, 16, 17, 27, 28, 29, 21, 22, 23, 24, 25, 26, 36, 37, 38, 30, 31, 32, 33, 34, 35, 9, 10, 11, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53], "U'": [2, 5, 8, 1, 4, 7, 0, 3, 6, 36, 37, 38, 12, 13, 14, 15, 16, 17, 9, 10, 11, 21, 22, 23, 24, 25, 26, 18, 19, 20, 30, 31, 32, 33, 34, 35, 27, 28, 29, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53]}
+
+# gui.py
+# Face normals: (name, [x, y, z])
+FACE_NORMALS = [
+    ("White",  [0, 0, -1]),   
+    ("Yellow", [0, 0, 1]),  
+    ("Blue",   [1, 0, 0]),  
+    ("Green",  [-1, 0, 0]), 
+    ("Red",    [0, -1, 0]), 
+    ("Orange", [0, 1, 0]), 
+]
+
+# cube_scanner.py
+
+FACE_TO_POSITION = {'White': [420, 20], 'Green': [346, 94], 'Red': [420, 94], 'Blue': [494, 94], 'Orange': [568, 94], 'Yellow': [420, 168]}
+
+USUAL_COLOUR_VALUES = {
+    'Red': (0, 0, 255),
+    'Green': (0, 255, 0),
+    'Blue': (255, 0, 0),
+    'Yellow': (0, 255, 255),
+    'Orange': (0, 165, 255),
+    'White': (255, 255, 255),
+}
+
+COLOUR_VALUES = [
+    ('Red', [109, 17, 20]),
+    ('Green', [7, 108, 33]),
+    ('Blue', [15, 37, 77]),
+    ('Yellow', [149, 150, 50]),
+    ('Orange', [203.5, 53, 33]),
+    ('White', [133, 132, 132])
+]
+
+# White Cross
 
 # solved masks for each white center piece for each face
 WHITE_CROSS_SOLVED_MASKS = {
@@ -60,7 +96,8 @@ F2L_CORNERS_SOLVED_MASKS =  {
                 ('R','.W.WWW.WW.G..G.....RR.R....BB..B.....O..O.............'),
                 ('B','.WWWWW.W..G..G.....R..R.....BB.B....OO..O.............'),
                 ('O','WW.WWW.W.GG..G.....R..R.....B..B.....OO.O.............'),
-                ('G','.W.WWWWW..GG.G....RR..R.....B..B.....O..O.............')}
+                ('G','.W.WWWWW..GG.G....RR..R.....B..B.....O..O.............')
+                }
 
 # the masks for inserting each corner piece, with 3 different insertion methods per piece
 F2L_CORNERS_INSERTION_MASKS = {
@@ -75,6 +112,60 @@ F2L_CORNERS_INSERTION_MASKS = {
                     ('OG3','.W.WWW.W..G..G.G...R..R.....B..B.....O..O...W......O..'),
                     ('GR1','.W.WWW.W..G..G...R.R..R.G...B..B.....O..O....W........'),
                     ('GR2','.W.WWW.W..G..G...G.R..R.W...B..B.....O..O....R........'),
-                    ('GR3','.W.WWW.W..G..G...W.R..R.R...B..B.....O..O....G........')}
+                    ('GR3','.W.WWW.W..G..G...W.R..R.R...B..B.....O..O....G........')
+                    }
 
 CORNER_INSERTION_ALGORITHMS = {1:"FLDDL'F'", 2:"R'D'R", 3:"FDF'"}
+
+## F2L Middle Pieces
+
+F2L_MIDDLE_SOLVED_MASKS = {
+                ('RB','WWWWWWWWWGGG.G....RRR.RR...BBBBB....OOO.O.............'),
+                ('RG','WWWWWWWWWGGG.GG...RRRRR....BBB.B....OOO.O.............'),
+                ('BO','WWWWWWWWWGGG.G....RRR.R....BBB.BB...OOOOO.............'),
+                ('OG','WWWWWWWWWGGGGG....RRR.R....BBB.B....OOO.OO............')
+                }
+
+F2L_MIDDLE_INSERTION_MASKS = {
+                ('RB','WWWWWWWWWGGG.G....RRR.R..R.BBB.B....OOO.O.....B.......'),
+                ('RG','WWWWWWWWWGGG.G....RRR.R..R.BBB.B....OOO.O.....G.......'),
+                ('BR','WWWWWWWWWGGG.G....RRR.R....BBB.B..B.OOO.O.........R...'),
+                ('BO','WWWWWWWWWGGG.G....RRR.R....BBB.B..B.OOO.O.........O...'),
+                ('OB','WWWWWWWWWGGG.G....RRR.R....BBB.B....OOO.O..O........B.'),
+                ('OG','WWWWWWWWWGGG.G....RRR.R....BBB.B....OOO.O..O........G.'),
+                ('GO','WWWWWWWWWGGG.G..G.RRR.R....BBB.B....OOO.O.......O.....'),
+                ('GR','WWWWWWWWWGGG.G..G.RRR.R....BBB.B....OOO.O.......R.....')
+                }
+
+LEFT_FACE_INSERTION_ALGORITHM = "DLD'L'D'F'DF"
+RIGHT_FACE_INSERTION_ALGORITHM = "D'R'DRDFD'F'"
+
+## Yellow Cross
+
+YELLOW_CROSS_SOLVED_MASK = 'WWWWWWWWWGGGGGG...RRRRRR...BBBBBB...OOOOOO....Y.YYY.Y.'
+YELLOW_CROSS_INSERTION_ALGORITHM = "FLDL'D'F'"
+
+# masks for L and line shapes, with face to perform algorithm from
+YELLOW_L_MASKS = {
+            ('O','WWWWWWWWWGGGGGG...RRRRRR...BBBBBB...OOOOOO....Y.YY....'),
+            ('G','WWWWWWWWWGGGGGG...RRRRRR...BBBBBB...OOOOOO....Y..YY...'),
+            ('B','WWWWWWWWWGGGGGG...RRRRRR...BBBBBB...OOOOOO......YY..Y.'),    
+            ('R','WWWWWWWWWGGGGGG...RRRRRR...BBBBBB...OOOOOO.......YY.Y.')        
+            }
+
+YELLOW_LINE_MASKS = {
+            ('R','WWWWWWWWWGGGGGG...RRRRRR...BBBBBB...OOOOOO......YYY...'),
+            ('B','WWWWWWWWWGGGGGG...RRRRRR...BBBBBB...OOOOOO....Y..Y..Y.'),    
+            }
+
+## Yellow Edges
+
+YELLOW_EDGES_SOLVED_MASK = 'WWWWWWWWWGGGGGG.G.RRRRRR.R.BBBBBB.B.OOOOOO.O..Y.YYY.Y.'
+
+YELLOW_EDGES_INSERTION_ALGORITHM = "LDL'DLDDL'D"
+
+YELLOW_CORNERS_INSERTION_ALGORITHM = "DLD'R'DL'D'R"
+
+# Final Step
+
+FINAL_STEP_ALGORITHM = "L'U'LU"

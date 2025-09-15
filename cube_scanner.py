@@ -3,26 +3,14 @@ import numpy as np
 from tkinter import *
 from PIL import Image, ImageTk
 from dominant_colour import getDominantColours
+from constants import USUAL_COLOUR_VALUES, FACE_TO_POSITION, COLOUR_VALUES
 
-faceToPosition = {'White': [420, 20], 'Green': [346, 94], 'Red': [420, 94], 'Blue': [494, 94], 'Orange': [568, 94], 'Yellow': [420, 168]}
-
-USUAL_COLOUR_VALUES = {
-    'Red': (0, 0, 255),
-    'Green': (0, 255, 0),
-    'Blue': (255, 0, 0),
-    'Yellow': (0, 255, 255),
-    'Orange': (0, 165, 255),
-    'White': (255, 255, 255),
-}
-
-COLOURS = [
-    ('Red', [109, 17, 20]),
-    ('Green', [7, 108, 33]),
-    ('Blue', [15, 37, 77]),
-    ('Yellow', [149, 150, 50]),
-    ('Orange', [203.5, 53, 33]),
-    ('White', [133, 132, 132])
-]
+COLOURS = [("Red", [205.27404537,  59.62644887,  44.40219895]),
+           ("Green", [2.07276848e-01, 2.31331543e+02, 1.56213033e+02]),
+           ("Blue", [  6.98065468, 102.78523982, 188.25155498]),
+           ("Yellow", [255, 255, 158.76374393]),
+           ("Orange", [255, 162.99320226, 64.53646332]),
+           ("White", [241.67310047, 254.99971655, 255       ])]
 
 def distance(r, g, b, r2, g2, b2) -> float:
     """Gets the distance between two RGB colors.
@@ -71,7 +59,7 @@ def displayFace(image: np.ndarray, colourList: list[list]) -> np.ndarray:
     jump = 2
 
     # gets the topleft corner of the face and draws the squares in a 3x3 grid
-    topLeft = faceToPosition[colourList[4]]
+    topLeft = FACE_TO_POSITION[colourList[4]]
     for i in range(3):
         for ii in range(3):
             cv2.rectangle(image,(topLeft[0] + i * width,topLeft[1] + ii * width), (topLeft[0] + (i+1) * (width)-jump,topLeft[1] + (ii+1) * (width)-jump),USUAL_COLOUR_VALUES[colourList[i+3*ii]],-1)

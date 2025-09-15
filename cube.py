@@ -6,8 +6,6 @@ from constants import *
 
 class Cube:
     def __init__(self, startStr: str = None) -> None:
-        #top = 0, left = 1, front = 2, right = 3, back = 4, bottom = 5
-        #top = white, left = green, front = red, right = blue, back = orange, bottom = yellow
         self.faces: list[list[str]] = [[[colour] * 3 for _ in range(3)] for colour in COLOURS]
         self.initialiseFaces(startStr)
         self.calculateFaces('R','W')
@@ -516,45 +514,25 @@ class Cube:
 
     def solveF2LMiddlePieces(self) -> None:
         """Inserts the middle layer edge pieces correctly as part of the F2L (First 2 Layers) solution."""
-        
-        # solved masks
 
-        redBlue      = ('RB','WWWWWWWWWGGG.G....RRR.RR...BBBBB....OOO.O.............')
-        redGreen     = ('RG','WWWWWWWWWGGG.GG...RRRRR....BBB.B....OOO.O.............')
-        blueOrange   = ('BO','WWWWWWWWWGGG.G....RRR.R....BBB.BB...OOOOO.............')
-        orangeGreen  = ('OG','WWWWWWWWWGGGGG....RRR.R....BBB.B....OOO.OO............')
+        solvedMasks = copy.deepcopy(F2L_MIDDLE_SOLVED_MASKS)
 
-        # collection of solved masks
-
-        solvedMasks = {redBlue,redGreen,blueOrange,orangeGreen}
-
-        # positions for insertion
-
-        redBlue      = ('RB','WWWWWWWWWGGG.G....RRR.R..R.BBB.B....OOO.O.....B.......')
-        redGreen     = ('RG','WWWWWWWWWGGG.G....RRR.R..R.BBB.B....OOO.O.....G.......')
-        blueRed      = ('BR','WWWWWWWWWGGG.G....RRR.R....BBB.B..B.OOO.O.........R...')
-        blueOrange   = ('BO','WWWWWWWWWGGG.G....RRR.R....BBB.B..B.OOO.O.........O...')
-        orangeBlue   = ('OB','WWWWWWWWWGGG.G....RRR.R....BBB.B....OOO.O..O........B.')
-        orangeGreen  = ('OG','WWWWWWWWWGGG.G....RRR.R....BBB.B....OOO.O..O........G.')
-        greenOrange  = ('GO','WWWWWWWWWGGG.G..G.RRR.R....BBB.B....OOO.O.......O.....')
-        greenRed     = ('GR','WWWWWWWWWGGG.G..G.RRR.R....BBB.B....OOO.O.......R.....')
-
-        possibleMasks = {redBlue,redGreen,blueRed,blueOrange,orangeBlue,orangeGreen,greenOrange,greenRed}
+        insertionMasks = copy.deepcopy(F2L_MIDDLE_INSERTION_MASKS)
 
         correctPieces = 0
         while correctPieces != 4:
             correctPieces = 0
             for mask in solvedMasks:
                 if self.checkMask(mask[1]):
-                    filtered = filter(lambda x: sorted(x[0]) != sorted(mask[0]),possibleMasks)
-                    possibleMasks = list(map(lambda a: (a[0],self.combineMasks(a[1],mask[1])),filtered))
+                    filtered = filter(lambda x: sorted(x[0]) != sorted(mask[0]),insertionMasks)
+                    insertionMasks = list(map(lambda a: (a[0],self.combineMasks(a[1],mask[1])),filtered))
                     correctPieces += 1
 
             if correctPieces == 4:
                 break
             
             inserted = False
-            for mask in possibleMasks:
+            for mask in insertionMasks:
                 if self.checkMask(mask[1]):
                     self.insertPiece(mask[0])
                     inserted = True
@@ -562,7 +540,7 @@ class Cube:
             if inserted:
                 continue
 
-            recurseMasks = list(map(lambda x: x[1],possibleMasks))
+            recurseMasks = list(map(lambda x: x[1],insertionMasks))
             moves = self.recurseToMasks(recurseMasks,2)
 
             if moves is None:
@@ -573,50 +551,36 @@ class Cube:
             else:
                 self.executeSequence("".join(moves))
 
-            for mask in possibleMasks:
+            for mask in insertionMasks:
                 if self.checkMask(mask[1]):
                     self.insertPiece(mask[0])
 
     def solveYellowCross(self) -> None:
         """Solves the yellow cross."""
 
-        # the final mask to get to
-        desiredMask = 'WWWWWWWWWGGGGGG...RRRRRR...BBBBBB...OOOOOO....Y.YYY.Y.'
-
         # the insertion algorithm
-        alg = "FLDL'D'F'"
+        alg = YELLOW_CROSS_INSERTION_ALGORITHM
 
-        # masks for L and line shapes, with face to perform algorithm from
-        yellowLMasks = {('O','WWWWWWWWWGGGGGG...RRRRRR...BBBBBB...OOOOOO....Y.YY....'),
-                        ('G','WWWWWWWWWGGGGGG...RRRRRR...BBBBBB...OOOOOO....Y..YY...'),
-                        ('B','WWWWWWWWWGGGGGG...RRRRRR...BBBBBB...OOOOOO......YY..Y.'),    
-                        ('R','WWWWWWWWWGGGGGG...RRRRRR...BBBBBB...OOOOOO.......YY.Y.')        
-        }
-
-        yellowLineMasks = {('R','WWWWWWWWWGGGGGG...RRRRRR...BBBBBB...OOOOOO......YYY...'),
-                           ('B','WWWWWWWWWGGGGGG...RRRRRR...BBBBBB...OOOOOO....Y..Y..Y.'),    
-        }
-
-        while not self.checkMask(desiredMask):
+        while not self.checkMask(YELLOW_CROSS_SOLVED_MASK):
             executed = False
-            for face,mask in yellowLMasks:
+            for face,mask in YELLOW_L_MASKS:
                 if self.checkMask(mask):
                     self.convertSequenceFromFace(face,alg) 
                     executed = True
                     break
 
-            for face,mask in yellowLineMasks:
+            for face,mask in YELLOW_LINE_MASKS:
                 if self.checkMask(mask):
                     self.convertSequenceFromFace(face,alg) 
                     executed = True
                     break
             
-            if not executed and self.checkMask('WWWWWWWWWGGGGGG...RRRRRR...BBBBBB...OOOOOO.......Y....'):
+            if not executed:
                 self.executeSequence(alg)
 
     def alignYellowEdges(self) -> None:
         """Aligns the yellow edges so the corners can be inserted."""
-        while not self.checkMask('WWWWWWWWWGGGGGG.G.RRRRRR.R.BBBBBB.B.OOOOOO.O..Y.YYY.Y.'):
+        while not self.checkMask(YELLOW_EDGES_SOLVED_MASK):
             numMatches = 0
             notMatchingFaces = []
             for face in range(1,5):
@@ -632,13 +596,13 @@ class Cube:
                 face1 = notMatchingFaces[0]
                 face2 = notMatchingFaces[1]
                 if self.getOppositeFace(face1) == face2: 
-                    self.convertSequenceFromFace(face1, "D L D L' D L DD L' D")
-                    self.convertSequenceFromFace(self.getLeftFace(face1),"L D L' D L DD L' D")
+                    self.convertSequenceFromFace(face1, "D" + YELLOW_EDGES_INSERTION_ALGORITHM)
+                    self.convertSequenceFromFace(self.getLeftFace(face1),YELLOW_EDGES_INSERTION_ALGORITHM)
                 else:
                     if self.getLeftFace(face1) == face2:
-                        self.convertSequenceFromFace(face2, "L D L' D L DD L' D")
+                        self.convertSequenceFromFace(face2, YELLOW_EDGES_INSERTION_ALGORITHM)
                     else:
-                        self.convertSequenceFromFace(face1, "L D L' D L DD L' D")
+                        self.convertSequenceFromFace(face1, YELLOW_EDGES_INSERTION_ALGORITHM)
             else:
                 self.executeSequence('D')
 
@@ -668,12 +632,12 @@ class Cube:
             return 
         
         elif len(validCorners) == 0:
-            self.executeSequence("DLD'R'DL'D'R")
+            self.executeSequence(YELLOW_CORNERS_INSERTION_ALGORITHM)
             self.solveYellowCorners()
 
         else:
             for _ in range(3):
-                self.convertSequenceFromFace(validCorners[0],"DLD'R'DL'D'R")
+                self.convertSequenceFromFace(validCorners[0],YELLOW_CORNERS_INSERTION_ALGORITHM)
                 if len(self.checkValidCorners()) == 4:
                     return
             self.solveYellowCorners()
@@ -683,7 +647,7 @@ class Cube:
         while not self.checkMask(SOLVED_MASK):
             if self.faces[5][0][0] != 'Y':
                 while self.faces[5][0][0] != 'Y':
-                    self.executeSequence("L' U' L U")
+                    self.executeSequence(FINAL_STEP_ALGORITHM)
             self.executeSequence("D")
 
     def insertPiece(self, code: str) -> None:
@@ -696,10 +660,10 @@ class Cube:
         otherFace = code[1]
 
         if otherFace == self.getLeftFace(face):
-            self.convertSequenceFromFace(face, "DLD'L'D'F'DF")    
+            self.convertSequenceFromFace(face, LEFT_FACE_INSERTION_ALGORITHM)    
         else:
-            self.convertSequenceFromFace(face, "D'R'DRDFD'F'")
-    
+            self.convertSequenceFromFace(face, RIGHT_FACE_INSERTION_ALGORITHM)
+
     def recurseToMasks(self, masks: list[str], depth: int = 6) -> list[str] | None:
         """Calls a function to perform DFS until a solution is found or the maximum depth is reached.
         
@@ -743,15 +707,13 @@ class Cube:
         
         if depth == 0:
             return None
-        
-        moves = ["D","U","F","L","R","B","D'","U'","F'","L'","R'","B'"]
 
         for move in range(12):
-            newstate = rotate(state,moves[move])
-            result = self.findMasksRecursion(masks,depth-1,newstate,cache) 
+            newstate = rotate(state,POSSIBLE_ROTATIONS[move])
+            result = self.findMasksRecursion(masks,depth-1,newstate,cache)
 
             if result is not None:
-                cache[cache_key] = [moves[move]] + result
+                cache[cache_key] = [POSSIBLE_ROTATIONS[move]] + result
                 return cache[cache_key]
         
         return None

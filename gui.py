@@ -4,16 +4,7 @@ from cube import Cube
 from cube_scanner import CubeScanner
 import tkinter as tk
 import numpy as np
-
-# Face normals: (name, [x, y, z])
-faceNormals = [
-    ("White",  [0, 0, -1]),   
-    ("Yellow", [0, 0, 1]),  
-    ("Blue",   [1, 0, 0]),  
-    ("Green",  [-1, 0, 0]), 
-    ("Red",    [0, -1, 0]), 
-    ("Orange", [0, 1, 0]), 
-]
+from constants import FACE_NORMALS
 
 def getRelativeFaces(ax: Axes3D) -> tuple[str, str]:
     """Gets the relative top and front vectors when moving the cube in 3D. This is
@@ -42,9 +33,9 @@ def getRelativeFaces(ax: Axes3D) -> tuple[str, str]:
     ])
 
     # Find the front face (max dot with view vector)
-    front = max(faceNormals, key=lambda f: np.dot(view, f[1]))[0][0]
+    front = max(FACE_NORMALS, key=lambda f: np.dot(view, f[1]))[0][0]
     # Find the top face (max dot with up vector)
-    top = max(faceNormals, key=lambda f: np.dot(up, f[1]))[0][0]
+    top = max(FACE_NORMALS, key=lambda f: np.dot(up, f[1]))[0][0]
 
     return front, top
 
