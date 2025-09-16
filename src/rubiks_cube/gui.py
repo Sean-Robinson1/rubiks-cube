@@ -7,6 +7,7 @@ from .constants import FACE_NORMALS
 from .cube import Cube
 from .cube_plotter import Axes3D, createFig, plotRubiks3D
 from .cube_scanner import CubeScanner
+from .colour_calibration import CubeCalibrator
 
 
 def getRelativeFaces(ax: Axes3D) -> tuple[str, str]:
@@ -55,12 +56,13 @@ class GUI:
         self.scanner = None
         self.tk = tk.Tk()
         self.tk.title("Rubik's Cube")
-        self.tk.protocol("WM_DELETE_WINDOW", self.on_close)
+        self.tk.protocol("WM_DELETE_WINDOW", self.onClose)
         self.w, self.h = self.tk.winfo_screenwidth(), self.tk.winfo_screenheight()
         self.tk.geometry(f"{self.w//2}x{self.h//2}")
         self.mainloopStarted = False
+        self.calibratedColours = None
 
-    def on_close(self) -> None:
+    def onClose(self) -> None:
         """Called when the main window is closed: stop scanner, release camera and exit."""
         if getattr(self, "scanner", None):
             try:
@@ -80,7 +82,12 @@ class GUI:
 
     def plot3D(self) -> None:
         """Plots the cube in 3D, using a matplotlib window for the cube."""
-        self.fig, self.ax = plotRubiks3D(self.cube.getPlottingList(), self.ax, self.fig)
+        plottingList = self.cube.getPlottingList()
+
+        if self.calibratedColours is not None:
+            plottingList = [self.calibratedColours[col] / 256 for col in plottingList]
+
+        self.fig, self.ax = plotRubiks3D(plottingList, self.ax, self.fig)
         self.canvas.draw()
 
     def solveCube(self) -> None:
@@ -201,7 +208,7 @@ class GUI:
         self.video_label = tk.Label(self.tk)
         self.video_label.pack(fill=tk.BOTH, expand=True, padx=10, pady=10)
 
-        self.scanner = CubeScanner(self.video_label)
+        self.scanner = CubeScanner(self.video_label, self.calibratedColours)
         btn_row = tk.Frame(self.tk)
         btn_row.pack(side=tk.BOTTOM, pady=10)
 
@@ -221,6 +228,38 @@ class GUI:
 
         end_btn = tk.Button(btn_row, text="End Scan", font=("Arial", 13), bg="lightgreen", command=end_scan)
         end_btn.pack(side=tk.LEFT, padx=5)
+
+    def startCalibration(self) -> None:
+        """Start a colour calibration UI embedded in the Tk window."""
+        for widget in self.tk.winfo_children():
+            widget.destroy()
+
+        self.video_label = tk.Label(self.tk)
+        self.video_label.pack(fill=tk.BOTH, expand=True, padx=10, pady=10)
+
+        # CubeCalibrator will update the label with camera frames and collect averages
+        self.calibrator = CubeCalibrator(self.video_label)
+
+        btn_row = tk.Frame(self.tk)
+        btn_row.pack(side=tk.BOTTOM, pady=10)
+
+        def cancel_cal():
+            self.calibrator.stop()
+            self.fig, self.ax = createFig()
+            self.createTkWindow()
+
+        def save_cal():
+            self.calibrator.stop()
+            self.fig, self.ax = createFig()
+            self.calibratedColours = self.calibrator.getAverages()
+            self.createTkWindow()
+
+        cancel_btn = tk.Button(btn_row, text="Cancel", font=("Arial", 13), bg="lightcoral", command=cancel_cal)
+        cancel_btn.pack(side=tk.LEFT, padx=5)
+
+        save_btn = tk.Button(btn_row, text="Save Calibration", font=("Arial", 13), bg="lightgreen", command=save_cal)
+        save_btn.pack(side=tk.LEFT, padx=5)
+
 
     def createTkWindow(self) -> None:
         """Initialises the tk window, as well as all frames, buttons and the cube display."""
@@ -262,7 +301,7 @@ class GUI:
             btn = tk.Button(
                 button_container,
                 text=name,
-                font=("Arial", 10, "bold"),
+                font=("Arial", 9, "bold"),
                 width=12,
                 height=2,
                 bg="lightblue",
@@ -277,7 +316,7 @@ class GUI:
             btn.grid(row=i % 6, column=i // 6, padx=5, pady=5, sticky="nsew")
 
         control_frame = tk.Frame(button_frame, bg="white")
-        control_frame.pack(side=tk.BOTTOM, fill=tk.X, padx=10, pady=20)
+        control_frame.pack(side=tk.BOTTOM, fill=tk.X, padx=10, pady=5)
 
         control_frame.grid_columnconfigure(0, weight=1)
         control_frame.grid_columnconfigure(1, weight=1)
@@ -304,6 +343,17 @@ class GUI:
         )
         scramble_btn.grid(row=0, column=1, sticky="ew", pady=5, padx=(5, 0))
 
+        calibrate_btn = tk.Button(
+            control_frame,
+            text="Calibrate Colours",
+            font=("Arial", 13),
+            bg="lightblue",
+            activebackground="deepskyblue",
+            activeforeground="white",
+            command=lambda: [self.startCalibration(), self.plot3D()],
+        )
+        calibrate_btn.grid(row=1, column=0, columnspan=2, sticky="ew", pady=5)
+
         scan_btn = tk.Button(
             control_frame,
             text="Scan Cube",
@@ -313,7 +363,7 @@ class GUI:
             activeforeground="white",
             command=lambda: [self.startScan(), self.plot3D()],
         )
-        scan_btn.grid(row=1, column=0, columnspan=2, sticky="ew", pady=5)
+        scan_btn.grid(row=2, column=0, columnspan=2, sticky="ew", pady=5)
 
         solve_btn = tk.Button(
             control_frame,
@@ -324,7 +374,7 @@ class GUI:
             activeforeground="white",
             command=lambda: [self.solveCube(), self.plot3D()],
         )
-        solve_btn.grid(row=2, column=0, columnspan=2, sticky="ew", pady=5)
+        solve_btn.grid(row=3, column=0, columnspan=2, sticky="ew", pady=5)
 
         if not self.mainloopStarted:
             self.mainloopStarted = True

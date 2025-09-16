@@ -34,7 +34,7 @@ def distance(r, g, b, r2, g2, b2) -> float:
     return (r - r2) ** 2 + (g - g2) ** 2 + (b - b2) ** 2
 
 
-def getClosestColourName(colour: tuple[float, float, float]) -> str:
+def getClosestColourName(colour: tuple[float, float, float], colours: list[tuple[str, np.ndarray]]) -> str:
     """Gets the name of the closest color to the given RGB values.
 
     Args:
@@ -45,7 +45,7 @@ def getClosestColourName(colour: tuple[float, float, float]) -> str:
     """
     r, g, b = colour[0], colour[1], colour[2]
 
-    closestColour = min(COLOURS, key=lambda x: distance(r, g, b, *x[1]))
+    closestColour = min(colours, key=lambda x: distance(r, g, b, *x[1]))
 
     return closestColour[0]
 
@@ -80,7 +80,7 @@ def displayFace(image: np.ndarray, colourList: list[list]) -> np.ndarray:
     return image
 
 
-def extractColours(image: np.ndarray) -> list[list]:
+def extractColours(image: np.ndarray, faceColours: list[tuple[str, np.ndarray]]) -> list[list]:
     """Extracts the colours of each cell in the Rubik's Cube face.
 
     Args:
@@ -109,14 +109,14 @@ def extractColours(image: np.ndarray) -> list[list]:
     for cell in cells:
         counter += 1
         dominantColour = getDominantColours(cell)[0]
-        dominantColourName = getClosestColourName(dominantColour)
+        dominantColourName = getClosestColourName(dominantColour, faceColours)
 
         colours.append(dominantColourName)
     return colours
 
 
 class CubeScanner:
-    def __init__(self, videoLabel: Label):
+    def __init__(self, videoLabel: Label, calibratedColours: dict[str, np.ndarray]) -> None:
         self.videoLabel = videoLabel
         self.vid = cv2.VideoCapture(0)
         self.previous3 = [[1], [2], [3]]
@@ -130,6 +130,13 @@ class CubeScanner:
         }
         self.running = True
         self.photo = None
+
+        if calibratedColours is not None:
+            self.colours = []
+            for colourName, rgb in calibratedColours.items(): 
+                self.colours.append((colourName, rgb))
+        else:
+            self.colours = COLOURS
 
         self.updateFrame()
 
@@ -208,7 +215,7 @@ class CubeScanner:
                         )
                         normalOutput = frame.copy()
                         cropped = normalOutput[minY:maxY, minX:maxX]
-                        colours = extractColours(cropped)
+                        colours = extractColours(cropped, self.colours)
                         self.previous3.append(colours)
                         if self.previous3[-1] == self.previous3[-2] == self.previous3[-3]:
                             output = displayFace(output, self.previous3[-1])
