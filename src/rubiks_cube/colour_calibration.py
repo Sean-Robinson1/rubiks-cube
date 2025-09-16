@@ -1,4 +1,5 @@
 import tkinter as tk
+
 import cv2
 import numpy as np
 from PIL import Image, ImageTk
@@ -6,6 +7,7 @@ from PIL import Image, ImageTk
 from .dominant_colour import getDominantColours
 
 FACE_KEYS = {"y": "Yellow", "r": "Red", "g": "Green", "o": "Orange", "b": "Blue", "w": "White"}
+
 
 def bgr2rgb(col: np.ndarray) -> np.ndarray:
     """Convert a BGR tuple to an RGB tuple with values between 0 and 1.
@@ -17,6 +19,7 @@ def bgr2rgb(col: np.ndarray) -> np.ndarray:
         tuple[float, float, float]: The RGB colour.
     """
     return np.array([col[2], col[1], col[0]])
+
 
 class CubeCalibrator:
     def __init__(self, videoLabel: tk.Label) -> None:
@@ -77,11 +80,29 @@ class CubeCalibrator:
                 bgr = [int(avg[2]), int(avg[1]), int(avg[0])]
             else:
                 bgr = [int(c) for c in self.defaultColours[name]]
-            cv2.rectangle(frame, (startx + jump * counter, starty), (startx + width + jump * counter, starty + width), bgr, -1)
-            cv2.putText(frame, name[0], (startx + jump * counter + 6, starty + width + 16), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (200, 200, 200), 1)
+            cv2.rectangle(
+                frame, (startx + jump * counter, starty), (startx + width + jump * counter, starty + width), bgr, -1
+            )
+            cv2.putText(
+                frame,
+                name[0],
+                (startx + jump * counter + 6, starty + width + 16),
+                cv2.FONT_HERSHEY_SIMPLEX,
+                0.5,
+                (200, 200, 200),
+                1,
+            )
             counter += 1
         if self.currentFace:
-            cv2.putText(frame, f"Recording: {self.currentFace}", (10, frame.shape[0] - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 255, 0), 2)
+            cv2.putText(
+                frame,
+                f"Recording: {self.currentFace}",
+                (10, frame.shape[0] - 10),
+                cv2.FONT_HERSHEY_SIMPLEX,
+                0.6,
+                (0, 255, 0),
+                2,
+            )
         return frame
 
     def updateFrame(self) -> None:
@@ -124,7 +145,7 @@ class CubeCalibrator:
         inset_h = 200
         inset_w = int(cropped.shape[1] * inset_h / max(1, cropped.shape[0]))
         inset = cv2.resize(cropped, (inset_w, inset_h))
-        display[10:10 + inset_h, display.shape[1] - inset_w - 10: display.shape[1] - 10] = inset
+        display[10 : 10 + inset_h, display.shape[1] - inset_w - 10 : display.shape[1] - 10] = inset
 
         w = round(self.videoLabel.winfo_width() * 0.9)
         h = round(self.videoLabel.winfo_height() * 0.9)

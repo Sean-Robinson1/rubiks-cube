@@ -133,7 +133,7 @@ class CubeScanner:
 
         if calibratedColours is not None:
             self.colours = []
-            for colourName, rgb in calibratedColours.items(): 
+            for colourName, rgb in calibratedColours.items():
                 self.colours.append((colourName, rgb))
         else:
             self.colours = COLOURS

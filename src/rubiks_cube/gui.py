@@ -3,11 +3,11 @@ import tkinter as tk
 import numpy as np
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 
+from .colour_calibration import CubeCalibrator
 from .constants import FACE_NORMALS
 from .cube import Cube
 from .cube_plotter import Axes3D, createFig, plotRubiks3D
 from .cube_scanner import CubeScanner
-from .colour_calibration import CubeCalibrator
 
 
 def getRelativeFaces(ax: Axes3D) -> tuple[str, str]:
@@ -259,7 +259,6 @@ class GUI:
 
         save_btn = tk.Button(btn_row, text="Save Calibration", font=("Arial", 13), bg="lightgreen", command=save_cal)
         save_btn.pack(side=tk.LEFT, padx=5)
-
 
     def createTkWindow(self) -> None:
         """Initialises the tk window, as well as all frames, buttons and the cube display."""

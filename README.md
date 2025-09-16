@@ -35,6 +35,22 @@ python -m rubiks_cube.main
 rubiks-cube
 ```
 
+## Usage
+
+- **Cube Manipulation**
+  - Rotate the cube using the on-screen buttons. Rotations are automatically applied based on the current orientation.
+  - Click 'Scramble' to randomise the cube.
+  - Click 'Reset View' to restore the default viewing angle.
+
+- **Colour Calibration & Scanning**
+  - Click 'Calibrate Colours' to open the webcam. Hold a solved cube inside the rectangle and press the key matching the first letter of each colour to calibrate. This updates the internal colour detection.
+  - Click 'Scan Cube' to scan a cube using the webcam. Hold the cube up; it will be detected and scanned automatically. The scanned cube map will be displayed.
+
+- **Solving**
+  - Click 'Solve' to compute the solution. A popup will show the moves required to solve the cube.
+
+> The UI is designed to be intuitive. For best results, ensure your webcam is well-lit and the cube is clearly visible. Also if you have a reflective cube, this can affect the performance of the scanning.
+
 ## Run tests / CI benchmark
 Run the CI benchmark script (solves 1000 cubes and records solve information):
 ```bash
@@ -64,6 +80,7 @@ CI runs the same checks; the job will fail if the repo is not formatted accordin
   - cube_utils.py         — Cube helper functions
   - cube_plotter.py       — 3D plotting utilities
   - cube_scanner.py       — Webcam scanner
+  - colour_calibration.py — Colour calibration GUI for webcam scanning
   - dominant_colour.py    — Colour extraction helpers
   - constants.py          — Masks and constants
 - tests/
