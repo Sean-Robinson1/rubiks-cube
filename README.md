@@ -43,13 +43,18 @@ rubiks-cube
   - Click 'Reset View' to restore the default viewing angle.
 
 - **Colour Calibration & Scanning**
-  - Click 'Calibrate Colours' to open the webcam. Hold a solved cube inside the rectangle and press the key matching the first letter of each colour to calibrate. This updates the internal colour detection.
+  - Click 'Calibrate Colours' to open the webcam. Hold a solved cube inside the rectangle and press the key matching the first letter of each colour to calibrate. This updates the internal colour detection. You will see the colours update in the top left. (As an example, if you want to calibrate the white colour hold the white face inside the rectangle and hold 'w')
   - Click 'Scan Cube' to scan a cube using the webcam. Hold the cube up; it will be detected and scanned automatically. The scanned cube map will be displayed.
 
 - **Solving**
   - Click 'Solve' to compute the solution. A popup will show the moves required to solve the cube.
 
 > The UI is designed to be intuitive. For best results, ensure your webcam is well-lit and the cube is clearly visible. Also if you have a reflective cube, this can affect the performance of the scanning.
+
+## UI
+
+Below is an image showing what the main UI window looks like:
+<img width="600" height="400" alt="image" src="https://github.com/user-attachments/assets/35f3900a-f5c1-48df-a6ea-9d34776969f1" />
 
 ## Run tests / CI benchmark
 Run the CI benchmark script (solves 1000 cubes and records solve information):
