@@ -54,7 +54,8 @@ rubiks-cube
 ## UI
 
 Below is an image showing what the main UI window looks like:
-<img width="600" height="400" alt="image" src="https://github.com/user-attachments/assets/35f3900a-f5c1-48df-a6ea-9d34776969f1" />
+<img width="600" height="400" alt="image" src="https://github.com/user-attachments/assets/a30d6f0b-7677-43f9-a598-bee95ec1171f" />
+
 
 ## Run tests / CI benchmark
 Run the CI benchmark script (solves 1000 cubes and records solve information):
