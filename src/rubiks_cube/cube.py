@@ -8,6 +8,13 @@ from .cube_utils import checkMask, optimiseMoves, printAnalysis, rotate
 
 class Cube:
     def __init__(self, startStr: str = None) -> None:
+        """Initialises a Cube object.
+
+        Args:
+            startStr (str, optional): A string of length 54 representing the cube's state.
+                                      If None, the cube is initialised in a solved state.
+                                      Defaults to None.
+        """
         self.faces: list[list[str]] = [[[colour] * 3 for _ in range(3)] for colour in COLOURS]
         self.initialiseFaces(startStr)
         self.calculateFaces("R", "W")
@@ -22,8 +29,14 @@ class Cube:
                     outputString += square
         return outputString
 
+    def __repr__(self) -> str:
+        return f"Cube('{str(self)}')"
+
     def __getitem__(self, index: int) -> list[list[str]]:
         return self.faces[index]
+
+    def __hash__(self) -> int:
+        return hash(str(self))
 
     @property
     def optimisedMoves(self) -> list[str]:
@@ -94,6 +107,8 @@ class Cube:
                 print(COLOUR_TO_UNICODE.get(square, ERROR_CHAR), end=" ")
             print()
 
+        print()
+
         for row in range(3):
             for faceIndex in range(1, 5):
                 face = faces[faceIndex]
@@ -103,11 +118,15 @@ class Cube:
                 print(" ", end="")
             print()
 
+        print()
+
         for row in faces[5]:
             print(10 * " ", end="")
             for square in row:
                 print(COLOUR_TO_UNICODE.get(square, ERROR_CHAR), end=" ")
             print()
+
+        print()
 
     def randomiseCube(self) -> list[str]:
         """Randomises the cube to a valid state.
@@ -148,21 +167,20 @@ class Cube:
 
         self.executeSequence(sequence2)
 
-    def rotateU(self, direction: int = 0) -> None:
+    def rotateU(self, direction: bool = CLOCKWISE) -> None:
         """Performs a rotation of the upper face.
 
         Args:
-            direction (int, optional): The direction to rotate the face. 0 for clockwise,
-                                       1 for counter-clockwise. Defaults to 0.
+            direction (bool, optional): The direction to rotate the face. Defaults to CLOCKWISE.
         """
-        if direction == 0:
+        self.rotateFace(0, direction)
+        if direction == CLOCKWISE:
             self.faces[4][0], self.faces[1][0], self.faces[2][0], self.faces[3][0] = (
                 self.faces[1][0],
                 self.faces[2][0],
                 self.faces[3][0],
                 self.faces[4][0],
             )
-            self.rotateFace(0)
         else:
             self.faces[1][0], self.faces[2][0], self.faces[3][0], self.faces[4][0] = (
                 self.faces[4][0],
@@ -170,23 +188,21 @@ class Cube:
                 self.faces[2][0],
                 self.faces[3][0],
             )
-            self.rotateFace(0, -1)
 
-    def rotateD(self, direction: int = 0) -> None:
+    def rotateD(self, direction: bool = CLOCKWISE) -> None:
         """Performs a rotation of the down face.
 
         Args:
-            direction (int, optional): The direction to rotate the face. 0 for clockwise,
-                                       1 for counter-clockwise. Defaults to 0.
+            direction (bool, optional): The direction to rotate the face. Defaults to CLOCKWISE.
         """
-        if direction == 0:
+        self.rotateFace(5, direction)
+        if direction == CLOCKWISE:
             self.faces[1][2], self.faces[2][2], self.faces[3][2], self.faces[4][2] = (
                 self.faces[4][2],
                 self.faces[1][2],
                 self.faces[2][2],
                 self.faces[3][2],
             )
-            self.rotateFace(5)
         else:
             self.faces[4][2], self.faces[1][2], self.faces[2][2], self.faces[3][2] = (
                 self.faces[1][2],
@@ -194,18 +210,15 @@ class Cube:
                 self.faces[3][2],
                 self.faces[4][2],
             )
-            self.rotateFace(5, -1)
 
-    def rotateF(self, direction: int = 0) -> None:
+    def rotateF(self, direction: bool = CLOCKWISE) -> None:
         """Performs a rotation of the front face.
 
         Args:
-            direction (int, optional): The direction to rotate the face. 0 for clockwise,
-                                        1 for counter-clockwise. Defaults to 0.
+            direction (bool, optional): The direction to rotate the face. Defaults to CLOCKWISE.
         """
-        if direction == 0:
-            self.rotateFace(2)
-
+        self.rotateFace(2, direction)
+        if direction == CLOCKWISE:
             for i in range(3):
                 (
                     self.faces[1][2 - i][2],
@@ -220,8 +233,6 @@ class Cube:
                 )
 
         else:
-            self.rotateFace(2, -1)
-
             for i in range(3):
                 (
                     self.faces[1][2 - i][2],
@@ -235,15 +246,14 @@ class Cube:
                     self.faces[1][2 - i][2],
                 )
 
-    def rotateB(self, direction: int = 0) -> None:
+    def rotateB(self, direction: bool = CLOCKWISE) -> None:
         """Performs a rotation of the back face.
 
         Args:
-            direction (int, optional): The direction to rotate the face. 0 for clockwise,
-                                       1 for counter-clockwise. Defaults to 0.
+            direction (bool, optional): The direction to rotate the face. Defaults to CLOCKWISE.
         """
-        if direction == 0:
-            self.rotateFace(4)
+        self.rotateFace(4, direction)
+        if direction == CLOCKWISE:
             for i in range(3):
                 (
                     self.faces[1][2 - i][0],
@@ -258,7 +268,6 @@ class Cube:
                 )
 
         else:
-            self.rotateFace(4, -1)
             for i in range(3):
                 (
                     self.faces[1][2 - i][0],
@@ -272,15 +281,14 @@ class Cube:
                     self.faces[3][i][2],
                 )
 
-    def rotateR(self, direction: int = 0) -> None:
+    def rotateR(self, direction: bool = CLOCKWISE) -> None:
         """Performs a rotation of the right face.
 
         Args:
-            direction (int, optional): The direction to rotate the face. 0 for clockwise,
-                                       1 for counter-clockwise. Defaults to 0.
+            direction (bool, optional): The direction to rotate the face. Defaults to CLOCKWISE.
         """
-        if direction == 0:
-            self.rotateFace(3)
+        self.rotateFace(3, direction)
+        if direction == CLOCKWISE:
             for i in range(3):
                 (
                     self.faces[2][2 - i][2],
@@ -295,7 +303,6 @@ class Cube:
                 )
 
         else:
-            self.rotateFace(3, -1)
             for i in range(3):
                 (
                     self.faces[2][2 - i][2],
@@ -309,15 +316,14 @@ class Cube:
                     self.faces[2][2 - i][2],
                 )
 
-    def rotateL(self, direction: int = 0) -> None:
+    def rotateL(self, direction: bool = CLOCKWISE) -> None:
         """Performs a rotation of the left face.
 
         Args:
-            direction (int, optional): The direction to rotate the face. 0 for clockwise,
-                                       1 for counter-clockwise. Defaults to 0.
+            direction (bool, optional): The direction to rotate the face. Defaults to CLOCKWISE.
         """
-        if direction == 0:
-            self.rotateFace(1)
+        self.rotateFace(1, direction)
+        if direction == CLOCKWISE:
             for i in range(3):
                 (
                     self.faces[2][2 - i][0],
@@ -332,8 +338,6 @@ class Cube:
                 )
 
         else:
-            self.rotateFace(1, -1)
-
             for i in range(3):
                 (
                     self.faces[2][2 - i][0],
@@ -347,17 +351,16 @@ class Cube:
                     self.faces[4][i][2],
                 )
 
-    def rotateFace(self, face: int = 2, direction: int = 0) -> None:
+    def rotateFace(self, face: int = 2, direction: bool = CLOCKWISE) -> None:
         """Rotates the specified face of the cube 90 degrees clockwise or anti-clockwise.
 
         Args:
             face (int, optional): The face to rotate. Defaults to 2 (the front face).
-            direction (int, optional): The direction to rotate the face. 0 for clockwise,
-                                       1 for counter-clockwise. Defaults to 0.
+            direction (bool, optional): The direction to rotate the face. Defaults to CLOCKWISE.
         """
         squares = []
 
-        if direction == 0:
+        if direction == CLOCKWISE:
             order = CLOCKWISE_TURNS
         else:
             order = ANTI_CLOCKWISE_TURNS
@@ -412,12 +415,12 @@ class Cube:
                 continue
 
             func = letterToFunc[ch]
-            direction = 0
+            direction = CLOCKWISE
             repeats = 1
             j = i + 1
 
             if j < len(seq) and seq[j] in ("'", "i"):
-                direction = -1
+                direction = ANTICLOCKWISE
                 j += 1
 
             elif j < len(seq) and seq[j].isdigit():
