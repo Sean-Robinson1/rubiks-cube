@@ -1,4 +1,5 @@
 import queue
+import sys
 from threading import Thread
 
 from rubiks_cube import Cube
@@ -24,12 +25,13 @@ def main() -> None:
     """Main function to run the cube analysis with a timeout."""
     q = queue.Queue()
     thread = Thread(target=run_analysis, args=(q,))
+    thread.daemon = True
     thread.start()
     thread.join(TIMEOUT)
 
     if thread.is_alive():
         print(f"Analysis did not complete within {TIMEOUT} seconds.")
-        raise TimeoutError("Analysis timed out")
+        sys.exit(1)
 
     try:
         result = q.get_nowait()
