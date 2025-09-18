@@ -39,39 +39,38 @@ def plotRubiks3D(colours: list[list[str]], ax: Axes3D, fig: plt.Figure) -> tuple
     for z in [0, 3]:
         for i in range(3):
             for ii in range(3):
-                X = np.arange(0 + i, 1 + i, 0.99)
-                Y = np.arange(0 + ii, 1 + ii, 0.99)
-
+                X = np.array([i, i + 1])
+                Y = np.array([ii, ii + 1])
                 X, Y = np.meshgrid(X, Y)
-                Z = X * 0 + z
+                Z = np.full_like(X, z)
 
-                ax.plot_surface(X, Y, Z, linewidth=0, color=colours[counter])
+                ax.plot_surface(X, Y, Z, linewidth=3, color=colours[counter], edgecolor="black")
                 counter += 1
 
     # plots planes perpendicular to the x-axis (Blue/Green)
     for x in [0, 3]:
         for i in range(3):
             for ii in range(3):
-                Z = np.arange(0 + i, 1 + i, 0.99)
-                Y = np.arange(0 + ii, 1 + ii, 0.99)
+                Z = np.array([i, 1 + i])
+                Y = np.array([ii, 1 + ii])
 
                 Z, Y = np.meshgrid(Z, Y)
-                X = Z * 0 + x
+                X = np.full_like(Z, x)
 
-                ax.plot_surface(X, Y, Z, linewidth=0, color=colours[counter])
+                ax.plot_surface(X, Y, Z, linewidth=3, color=colours[counter], edgecolor="black")
                 counter += 1
 
     # plots planes perpendicular to the y-axis (Red/Orange)
     for y in [0, 3]:
         for i in range(3):
             for ii in range(3):
-                Z = np.arange(0 + i, 1 + i, 0.99)
-                X = np.arange(0 + ii, 1 + ii, 0.99)
+                Z = np.array([i, 1 + i])
+                X = np.array([ii, 1 + ii])
 
                 Z, X = np.meshgrid(Z, X)
-                Y = X * 0 + y
+                Y = np.full_like(Z, y)
 
-                ax.plot_surface(X, Y, Z, linewidth=0, color=colours[counter])
+                ax.plot_surface(X, Y, Z, linewidth=3, color=colours[counter], edgecolor="black")
                 counter += 1
 
     plt.axis("off")
