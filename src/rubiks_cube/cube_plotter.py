@@ -44,7 +44,7 @@ def plotRubiks3D(colours: list[list[str]], ax: Axes3D, fig: plt.Figure) -> tuple
                 X, Y = np.meshgrid(X, Y)
                 Z = np.full_like(X, z)
 
-                ax.plot_surface(X, Y, Z, linewidth=3, color=colours[counter], edgecolor="black")
+                ax.plot_surface(X, Y, Z, linewidth=3, color=colours[counter], edgecolor="black", shade=False)
                 counter += 1
 
     # plots planes perpendicular to the x-axis (Blue/Green)
@@ -57,7 +57,7 @@ def plotRubiks3D(colours: list[list[str]], ax: Axes3D, fig: plt.Figure) -> tuple
                 Z, Y = np.meshgrid(Z, Y)
                 X = np.full_like(Z, x)
 
-                ax.plot_surface(X, Y, Z, linewidth=3, color=colours[counter], edgecolor="black")
+                ax.plot_surface(X, Y, Z, linewidth=3, color=colours[counter], edgecolor="black", shade=False)
                 counter += 1
 
     # plots planes perpendicular to the y-axis (Red/Orange)
@@ -70,7 +70,7 @@ def plotRubiks3D(colours: list[list[str]], ax: Axes3D, fig: plt.Figure) -> tuple
                 Z, X = np.meshgrid(Z, X)
                 Y = np.full_like(Z, y)
 
-                ax.plot_surface(X, Y, Z, linewidth=3, color=colours[counter], edgecolor="black")
+                ax.plot_surface(X, Y, Z, linewidth=3, color=colours[counter], edgecolor="black", shade=False)
                 counter += 1
 
     plt.axis("off")
