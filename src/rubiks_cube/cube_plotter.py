@@ -5,12 +5,25 @@ from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 from mpl_toolkits.mplot3d import Axes3D
 from mpl_toolkits.mplot3d.art3d import Poly3DCollection
 
-from .constants import AXIS_MAP, FACE_CENTER_POSITIONS
+from .constants import AXIS_MAP, CENTER_ORDERINGS, FACE_CENTER_POSITIONS
 
 COLOURS = ["White", "Yellow", "Red", "Orange", "Blue", "Green"]
 colours = []
 for colour in COLOURS:
     colours += [colour] * 9
+
+
+def getDistance(a: np.ndarray, b: np.ndarray) -> float:
+    """Calculate the Euclidean distance between two points.
+
+    Args:
+        a (np.ndarray): First point.
+        b (np.ndarray): Second point.
+
+    Returns:
+        float: The Euclidean distance between the two points.
+    """
+    return np.sqrt(np.sum((a - b) ** 2))
 
 
 def rotationMatrix(axis: np.ndarray, theta: float) -> np.ndarray:
@@ -140,7 +153,7 @@ class CubePlotter:
         self.plottingPlanes = [p["corners"] for p in self.planes]
         self.plottingColours = [p["colour"] for p in self.planes]
 
-        poly = Poly3DCollection(self.plottingPlanes, facecolors=self.plottingColours, edgecolors="black", linewidths=3)
+        poly = Poly3DCollection(self.plottingPlanes, facecolors=self.plottingColours, edgecolors="black", linewidths=7)
         self.ax.add_collection3d(poly)
 
         self.ax.set_xlim(0, 3)
@@ -162,45 +175,38 @@ class CubePlotter:
         centers = np.array([p["center"] for p in self.planes])
         facePos = FACE_CENTER_POSITIONS[move[0]]
 
-        indices = [
-            i
-            for i, c in enumerate(centers)
-            if abs(((c[0] - facePos[0]) ** 2 + (c[1] - facePos[1]) ** 2 + (c[2] - facePos[2]) ** 2) ** 0.5) < 2
-        ]
+        indices = [i for i, c in enumerate(centers) if abs(getDistance(c, facePos)) < 2]
 
         return indices
 
-    def makeMove(self, move: str) -> None:
+    def makeMove(self, move: str, angle: float = np.pi / 2) -> None:
         """Make a move on the cube plotter.
         Args:
             move (str): The move to make (e.g., "R", "U'", etc.).
+            angle (float): The angle to rotate by (radians).
         """
-        if len(move) == 2:
-            direction = -1
-        else:
-            direction = 1
-
+        direction = -1 if len(move) == 2 else 1
         move = move[0]
-
         indices = self.getPlanesToRotate(move)
         axis = AXIS_MAP[move]
         faceCenter = FACE_CENTER_POSITIONS[move]
+        rotatePlanes(self.planes, indices, axis, direction * angle, faceCenter)
 
-        angle = direction * np.pi / 2
-        rotatePlanes(self.planes, indices, axis, angle, faceCenter)
-        self.updatePlot()
-
-    def updatePlot(self, canvas: FigureCanvasTkAgg = None):
+    def updatePlot(self, planes: list[dict] = None, canvas: FigureCanvasTkAgg = None):
         """Update the 3D plot with the current plane data.
 
         Args:
             canvas: Optional; The canvas to draw on if using with a GUI.
         """
-        self.ax.cla()
-        self.plottingPlanes = [p["corners"] for p in self.planes]
-        self.plottingColours = [p["colour"] for p in self.planes]
 
-        poly = Poly3DCollection(self.plottingPlanes, facecolors=self.plottingColours, edgecolors="black", linewidths=3)
+        if planes is None:
+            planes = self.planes
+
+        self.ax.cla()
+        self.plottingPlanes = [p["corners"] for p in planes]
+        self.plottingColours = [p["colour"] for p in planes]
+
+        poly = Poly3DCollection(self.plottingPlanes, facecolors=self.plottingColours, edgecolors="black", linewidths=7)
         self.ax.add_collection3d(poly)
 
         self.ax.set_xlim(0, 3)
@@ -212,12 +218,12 @@ class CubePlotter:
             canvas.draw()
 
     def animateMove(
-        self, move: str, steps: int = 15, canvas: FigureCanvasTkAgg = None, interval: int = 1
+        self, move: str, steps: int = 15, canvas: FigureCanvasTkAgg = None, interval: int = 1, cubeString: str = None
     ) -> FuncAnimation:
         """Animate a move on the cube plotter.
 
         Args:
-            move (str): The move to animate (e.g., "R", "U'", etc.).
+            move (str): The move to animate (e.g., "W", "R'", etc.).
             steps (int): Number of animation steps.
             canvas (FigureCanvasTkAgg): The canvas to draw on if using with a GUI.
             interval (int): Time between frames in milliseconds.
@@ -231,6 +237,20 @@ class CubePlotter:
 
         move = move[0]
 
+        if cubeString is not None:
+            colours = ["" for _ in range(54)]
+
+            self.makeMove(move, angle=direction * np.pi / 2)
+            for p in self.planes:
+                colours[CENTER_ORDERINGS[tuple(map(lambda x: round(x, 2), p["center"]))]] = p["colour"]
+
+            colourString = "".join([c for c in colours])
+
+            self.makeMove(move, angle=-direction * np.pi / 2)  # revert the move
+
+            if colourString != cubeString:
+                direction *= -1
+
         axis = AXIS_MAP[move]
         faceCenter = FACE_CENTER_POSITIONS[move]
         totalAngle = direction * np.pi / 2
@@ -238,7 +258,7 @@ class CubePlotter:
 
         def update(frame):
             rotatePlanes(self.planes, indices, axis, angleStep, faceCenter)
-            self.updatePlot(canvas)
+            self.updatePlot(canvas=canvas)
 
         ani = FuncAnimation(self.fig, update, frames=steps - 1, interval=interval, repeat=False)
         return ani

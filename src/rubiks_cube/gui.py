@@ -60,6 +60,7 @@ class GUI:
         self.tk.geometry(f"{self.w}x{self.h}")
         self.mainloopStarted = False
         self.calibratedColours = None
+        self.showAnimations = True
         self.plotter = CubePlotter()
 
     def onClose(self) -> None:
@@ -260,6 +261,23 @@ class GUI:
         save_btn = tk.Button(btn_row, text="Save Calibration", font=("Arial", 20), bg="lightgreen", command=save_cal)
         save_btn.pack(side=tk.LEFT, padx=5)
 
+    def rotateCube(self, move: str) -> None:
+        """Rotate the cube view in 3D.
+
+        Args:
+            move (str): The move to perform (e.g., "W", "R'", etc.).
+        """
+        if self.showAnimations:
+            self.cube.executeSequenceRelative(move)
+            # storing animation as variable to prevent garbage collection
+            self.plotter.animateMove(
+                self.cube.getMoveRelative(move), canvas=self.canvas, cubeString="".join(self.cube.getPlottingList())
+            )
+            self.canvas.draw()
+        else:
+            self.cube.executeSequenceRelative(move)
+            self.plot3D()
+
     def createTkWindow(self) -> None:
         """Initialises the tk window, as well as all frames, buttons and the cube display."""
         for widget in self.tk.winfo_children():
@@ -285,7 +303,7 @@ class GUI:
         button_frame.pack(side=tk.RIGHT, fill=tk.Y, padx=(20, 0))
         button_frame.pack_propagate(False)
 
-        title_label = tk.Label(button_frame, text="Cube Rotations", font=("Arial", 14, "bold"), bg="white")
+        title_label = tk.Label(button_frame, text="Cube Rotations", font=("Arial", 25, "bold"), bg="white")
         title_label.pack(pady=(10, 20))
 
         button_names = ["R", "L", "U", "D", "F", "B", "R'", "L'", "U'", "D'", "F'", "B'"]
@@ -308,9 +326,7 @@ class GUI:
                 activeforeground="white",
                 command=lambda name=name: [
                     self.cube.calculateFaces(*getRelativeFaces(self.plotter.ax)),
-                    self.cube.executeSequenceRelative(name),
-                    self.plotter.animateMove(self.cube.getMoveRelative(name), canvas=self.canvas),
-                    self.canvas.draw(),
+                    self.rotateCube(name),
                 ],
             )
             btn.grid(row=i % 6, column=i // 6, padx=5, pady=5, sticky="nsew")
@@ -375,6 +391,21 @@ class GUI:
             command=lambda: [self.solveCube(), self.plot3D()],
         )
         solve_btn.grid(row=3, column=0, columnspan=2, sticky="ew", pady=5)
+
+        def toggle_animations():
+            self.showAnimations = not self.showAnimations
+            anim_btn.config(text=f"Animations: {'On' if self.showAnimations else 'Off'}")
+
+        anim_btn = tk.Button(
+            control_frame,
+            text="Animations: On",
+            font=("Arial", 18, "bold"),
+            bg="lightblue",
+            activebackground="deepskyblue",
+            activeforeground="white",
+            command=toggle_animations,
+        )
+        anim_btn.grid(row=4, column=0, columnspan=2, sticky="ew", pady=5)
 
         if not self.mainloopStarted:
             self.mainloopStarted = True

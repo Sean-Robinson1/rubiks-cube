@@ -226,23 +226,15 @@ class CubeScanner:
                     cv2.drawContours(output, [faceContours[i]], -1, (255, 0, 0), 5)
 
             if len(faceCornersX) >= 4 and len(faceCornersY) >= 4:
-                areaRect = (max(faceCornersX) - min(faceCornersX)) * (max(faceCornersY) - min(faceCornersY))
                 maxX, maxY = max(faceCornersX), max(faceCornersY)
                 minX, minY = min(faceCornersX), min(faceCornersY)
 
+                areaRect = (maxX - minX) * (maxY - minY)
+
                 if areaRect * 0.45 < avgArea * 9 < areaRect * 1.1:
-                    if (
-                        (max(faceCornersX) - min(faceCornersX)) * 0.8
-                        < max(faceCornersY) - min(faceCornersY)
-                        < 1.2 * (max(faceCornersX) - min(faceCornersX))
-                    ):
-                        cv2.rectangle(
-                            output,
-                            (min(faceCornersX), min(faceCornersY)),
-                            (max(faceCornersX), max(faceCornersY)),
-                            (0, 0, 255),
-                            3,
-                        )
+                    if (maxX - minX) * 0.8 < maxY - minY < 1.2 * (maxX - minX):
+                        cv2.rectangle(output, (minX, minY), (maxX, maxY), (0, 0, 255), 3)
+
                         normalOutput = frame.copy()
                         cropped = normalOutput[minY:maxY, minX:maxX]
                         colours = extractColours(cropped, self.colours)

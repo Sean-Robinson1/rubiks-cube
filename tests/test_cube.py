@@ -44,7 +44,6 @@ class TestCubeNonSolver(unittest.TestCase):
         self.assertEqual(cube.back, "Y")
         self.assertEqual(cube.left, "O")
         self.assertEqual(cube.right, "R")
-        print(cube.relativeMoveMap)
 
         cube = Cube()
         cube.calculateFaces("R", "Y")
@@ -54,7 +53,6 @@ class TestCubeNonSolver(unittest.TestCase):
         self.assertEqual(cube.back, "O")
         self.assertEqual(cube.left, "B")
         self.assertEqual(cube.right, "G")
-        print(cube.relativeMoveMap)
 
         cube = Cube()
         cube.calculateFaces("R", "B")
@@ -117,7 +115,6 @@ class TestCubeNonSolver(unittest.TestCase):
             func(direction)
             i = j
 
-        # Both cubes should have the same state
         self.assertEqual(str(cube1), str(cube2))
 
     def test_checkMask(self):

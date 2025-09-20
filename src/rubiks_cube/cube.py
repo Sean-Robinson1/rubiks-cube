@@ -184,8 +184,6 @@ class Cube:
         sequence2 = ""
         for i in range(len(sequence) - 1, -1, -1):
             turn = sequence[i]
-            print(turn)
-
             if len(turn) == 2:
                 sequence2 += turn[0]
             else:
