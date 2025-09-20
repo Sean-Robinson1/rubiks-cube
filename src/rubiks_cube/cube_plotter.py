@@ -6,65 +6,7 @@ from mpl_toolkits.mplot3d import Axes3D
 from mpl_toolkits.mplot3d.art3d import Poly3DCollection
 
 from .constants import AXIS_MAP, CENTER_ORDERINGS, FACE_CENTER_POSITIONS
-
-COLOURS = ["White", "Yellow", "Red", "Orange", "Blue", "Green"]
-colours = []
-for colour in COLOURS:
-    colours += [colour] * 9
-
-
-def getDistance(a: np.ndarray, b: np.ndarray) -> float:
-    """Calculate the Euclidean distance between two points.
-
-    Args:
-        a (np.ndarray): First point.
-        b (np.ndarray): Second point.
-
-    Returns:
-        float: The Euclidean distance between the two points.
-    """
-    return np.sqrt(np.sum((a - b) ** 2))
-
-
-def rotationMatrix(axis: np.ndarray, theta: float) -> np.ndarray:
-    """Return the rotation matrix associated with rotation about the given axis by theta radians.
-
-    Args:
-        axis (np.ndarray): The axis to rotate about.
-        theta (float): The angle to rotate by, in radians.
-
-    Returns:
-        np.ndarray: The rotation matrix.
-    """
-    axis = np.asarray(axis, dtype=float)
-    axis = axis / np.linalg.norm(axis)
-    a = np.cos(theta / 2.0)
-    b, c, d = -axis * np.sin(theta / 2.0)
-    return np.array(
-        [
-            [a * a + b * b - c * c - d * d, 2 * (b * c - a * d), 2 * (b * d + a * c)],
-            [2 * (b * c + a * d), a * a + c * c - b * b - d * d, 2 * (c * d - a * b)],
-            [2 * (b * d - a * c), 2 * (c * d + a * b), a * a + d * d - b * b - c * c],
-        ]
-    )
-
-
-def rotatePlanes(planes: list[dict], indices: list[int], axis: np.ndarray, angle: float, center: np.ndarray) -> None:
-    """Rotate the specified planes around a given axis by a certain angle.
-
-    Args:
-        planes (list[dict]): List of plane dicts to rotate.
-        indices (list[int]): Indices of planes to rotate.
-        axis (np.ndarray): Axis to rotate around.
-        angle (float): Angle to rotate by, in radians.
-        center (np.ndarray): Center point to rotate around.
-    """
-    R = rotationMatrix(axis, angle)
-    for i in indices:
-        corners = planes[i]["corners"] - center
-        corners = corners @ R.T
-        planes[i]["corners"] = corners + center
-        planes[i]["center"] = (planes[i]["center"] - center) @ R.T + center
+from .plotter_utils import getDistance, rotatePlanes
 
 
 class CubePlotter:

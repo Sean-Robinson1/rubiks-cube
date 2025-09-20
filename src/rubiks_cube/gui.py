@@ -1,51 +1,12 @@
 import tkinter as tk
 
-import numpy as np
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 
 from .colour_calibration import CubeCalibrator
-from .constants import FACE_NORMALS
 from .cube import Cube
-from .cube_plotter import Axes3D, CubePlotter
+from .cube_plotter import CubePlotter
 from .cube_scanner import CubeScanner
-
-
-def getRelativeFaces(ax: Axes3D) -> tuple[str, str]:
-    """Gets the relative top and front vectors when moving the cube in 3D. This is
-    used so that all the move buttons act relative to the front facing face.
-
-    Args:
-        ax (Axes3D): The current axis
-
-    Returns:
-        tuple[str, str]: The front and top face names.
-    """
-
-    azimRad = np.deg2rad(ax.azim)
-    elevRad = np.deg2rad(ax.elev)
-
-    view = np.array(
-        [
-            np.cos(elevRad) * np.sin(azimRad),  # x
-            np.cos(elevRad) * np.cos(azimRad),  # y
-            np.sin(elevRad),  # z
-        ]
-    )
-
-    up = np.array(
-        [
-            -np.sin(elevRad) * np.sin(azimRad),  # x
-            -np.sin(elevRad) * np.cos(azimRad),  # y
-            np.cos(elevRad),  # z
-        ]
-    )
-
-    # Find the front face (max dot with view vector)
-    front = max(FACE_NORMALS, key=lambda f: np.dot(view, f[1]))[0][0]
-    # Find the top face (max dot with up vector)
-    top = max(FACE_NORMALS, key=lambda f: np.dot(up, f[1]))[0][0]
-
-    return front, top
+from .plotter_utils import getRelativeFaces
 
 
 class GUI:

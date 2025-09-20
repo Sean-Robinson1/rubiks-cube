@@ -4,25 +4,18 @@ import cv2
 import numpy as np
 from PIL import Image, ImageTk
 
+from .constants import FACE_KEYS
 from .dominant_colour import getDominantColours
-
-FACE_KEYS = {"y": "Yellow", "r": "Red", "g": "Green", "o": "Orange", "b": "Blue", "w": "White"}
-
-
-def bgr2rgb(col: np.ndarray) -> np.ndarray:
-    """Convert a BGR tuple to an RGB tuple with values between 0 and 1.
-
-    Args:
-        col (tuple[int, int, int]): The BGR colour.
-
-    Returns:
-        tuple[float, float, float]: The RGB colour.
-    """
-    return np.array([col[2], col[1], col[0]])
+from .scanner_utils import bgr2rgb
 
 
 class CubeCalibrator:
     def __init__(self, videoLabel: tk.Label) -> None:
+        """Initialises the CubeCalibrator with a video label.
+
+        Args:
+            videoLabel (tk.Label): The Tkinter label to display the video feed.
+        """
         self.videoLabel = videoLabel
 
         # default display colours (BGR tuples for cv2 drawing)
@@ -49,6 +42,11 @@ class CubeCalibrator:
         self.updateFrame()
 
     def keyPressed(self, event: tk.Event) -> None:
+        """Handle key press events to set the current face or quit.
+
+        Args:
+            event (tk.Event): The key press event.
+        """
         key = getattr(event, "char", "").lower()
         if key == "q":
             self.stop()
@@ -57,6 +55,14 @@ class CubeCalibrator:
             self.currentFace = FACE_KEYS[key]
 
     def extractCells(self, img: np.ndarray) -> list[np.ndarray]:
+        """Extract the 9 cells from the given image of a cube face.
+
+        Args:
+            img (np.ndarray): The image of the cube face.
+
+        Returns:
+            list[np.ndarray]: A list of 9 images, each corresponding to a cell.
+        """
         h, w = img.shape[:2]
         xInc = w // 3
         yInc = h // 3
@@ -71,6 +77,15 @@ class CubeCalibrator:
         return cells
 
     def displayColours(self, frame: np.ndarray, colours: dict[str, tuple[np.ndarray, int]]) -> np.ndarray:
+        """Display the current averaged colours on the frame.
+
+        Args:
+            frame (np.ndarray): The frame to draw on.
+            colours (dict[str, tuple[np.ndarray, int]]): The current averaged colours and their counts.
+
+        Returns:
+            np.ndarray: The frame with the colours drawn on it.
+        """
         startx, starty = 10, 10
         width, jump = 36, 44
         counter = 0
@@ -106,6 +121,8 @@ class CubeCalibrator:
         return frame
 
     def updateFrame(self) -> None:
+        """Update the video frame from the webcam and process it. Records the colours of the current face if set.
+        Displays the current averaged colours and the cropped square."""
         if not self.running:
             if self.vid.isOpened():
                 self.vid.release()
@@ -164,12 +181,13 @@ class CubeCalibrator:
             self.videoLabel.after(30, self.updateFrame)
 
     def stop(self) -> None:
+        """Stops the webcam recording and releases the video."""
         self.running = False
         if hasattr(self, "vid") and self.vid.isOpened():
             self.vid.release()
 
-    def getAverages(self) -> list[tuple[str, np.ndarray]]:
-        """Return averaged RGB colours (as float arrays) or None if not recorded."""
+    def getAverages(self) -> dict[str, np.ndarray]:
+        """Return averaged RGB colours."""
         out = {}
         for k, (sumcol, count) in self.avgColours.items():
             out[k] = (sumcol / count) if count > 0 else bgr2rgb(self.defaultColours[k])
