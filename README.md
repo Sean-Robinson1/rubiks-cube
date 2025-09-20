@@ -65,6 +65,15 @@ python tests/ci_test.py
 
 > **Note** - The time for an average solve should be ~0.01 seconds
 
+
+To run the unit tests:
+```bash
+# if pytest is not installed
+pip install pytest
+
+pytest tests/
+```
+
 ## Formatting & pre-commit
 This repo uses `black`, `isort` and `ruff` via `.pre-commit-config.yaml`.
 
