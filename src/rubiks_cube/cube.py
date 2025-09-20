@@ -79,14 +79,29 @@ class Cube:
         self.bottom = self.getOppositeFace(top)
         self.back = self.getOppositeFace(front)
 
-        if self.front != "W" and self.front != "Y":
-            self.left = FACE_NUM_TO_COLOUR[((COLOUR_TO_FACE_NUM[self.front] - 2) % 4) + 1]
+        if self.top == "W":
+            self.left = self.getLeftFace(self.front)
+        elif self.top == "Y":
+            self.left = self.getRightFace(self.front)
         elif self.front == "W":
             self.left = self.getRightFace(self.top)
-        else:
+        elif self.front == "Y":
             self.left = self.getLeftFace(self.top)
+        elif self.top == self.getLeftFace(self.front):
+            self.left = "Y"
+        else:
+            self.left = "W"
 
         self.right = self.getOppositeFace(self.left)
+
+        self.relativeMoveMap = {
+            "R": self.right,
+            "L": self.left,
+            "F": self.front,
+            "B": self.back,
+            "U": self.top,
+            "D": self.bottom,
+        }
 
     def getPlottingList(self) -> list[str]:
         """Returns a list of colours in the correct order to be plotted.
@@ -503,6 +518,17 @@ class Cube:
         """
         return RIGHT_FACE_MAPPING.get(colour, None)
 
+    def getMoveRelative(self, move: str) -> str:
+        """Returns the move relative to the current front and top faces.
+
+        Args:
+            move (str): A single character representing the move to convert.
+
+        Returns:
+            str: The move relative to the current front and top faces.
+        """
+        return self.relativeMoveMap.get(move[0], move[0]) + move[1:]
+
     def executeSequenceRelative(self, sequence: str) -> None:
         """Executes a sequence of moves relative to the current front and top faces.
 
@@ -511,17 +537,8 @@ class Cube:
         """
         out = ""
 
-        letterToFace = {
-            "R": self.right,
-            "L": self.left,
-            "F": self.front,
-            "B": self.back,
-            "U": self.top,
-            "D": self.bottom,
-        }
-
         for letter in sequence:
-            out += letterToFace.get(letter, letter)
+            out += self.relativeMoveMap.get(letter, letter)
 
         self.executeSequence(out, True)
 

@@ -44,6 +44,26 @@ class TestCubeNonSolver(unittest.TestCase):
         self.assertEqual(cube.back, "Y")
         self.assertEqual(cube.left, "O")
         self.assertEqual(cube.right, "R")
+        print(cube.relativeMoveMap)
+
+        cube = Cube()
+        cube.calculateFaces("R", "Y")
+        self.assertEqual(cube.front, "R")
+        self.assertEqual(cube.top, "Y")
+        self.assertEqual(cube.bottom, "W")
+        self.assertEqual(cube.back, "O")
+        self.assertEqual(cube.left, "B")
+        self.assertEqual(cube.right, "G")
+        print(cube.relativeMoveMap)
+
+        cube = Cube()
+        cube.calculateFaces("R", "B")
+        self.assertEqual(cube.front, "R")
+        self.assertEqual(cube.top, "B")
+        self.assertEqual(cube.bottom, "G")
+        self.assertEqual(cube.back, "O")
+        self.assertEqual(cube.left, "W")
+        self.assertEqual(cube.right, "Y")
 
     def test_randomiseCube(self):
         cube = Cube()

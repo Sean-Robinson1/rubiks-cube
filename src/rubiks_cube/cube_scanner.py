@@ -115,8 +115,32 @@ def extractColours(image: np.ndarray, faceColours: list[tuple[str, np.ndarray]])
     return colours
 
 
+def filterContours(contours: list[np.ndarray], thresholdDistance: int) -> list[np.ndarray]:
+    """Filters the detected contours to ensure they likely represent cube faces.
+
+    Args:
+        contours (list[np.ndarray]): The list of detected contours.
+        thresholdDistance (int): The maximum distance from the average center to consider a contour valid.
+
+    Returns:
+        list[np.ndarray]: The filtered list of contours.
+    """
+
+    moments = [cv2.moments(contour) for contour in contours]
+    centers = [(int(moment["m10"] / moment["m00"]), int(moment["m01"] / moment["m00"])) for moment in moments]
+    (avgX, avgY) = np.mean(centers, axis=0)
+
+    output = []
+    for contour, (cx, cy) in zip(contours, centers):
+        distance = np.sqrt((cx - avgX) ** 2 + (cy - avgY) ** 2)
+        if distance < thresholdDistance:
+            output.append(contour)
+
+    return output
+
+
 class CubeScanner:
-    def __init__(self, videoLabel: Label, calibratedColours: dict[str, np.ndarray]) -> None:
+    def __init__(self, videoLabel: Label, calibratedColours: dict[str, np.ndarray] = None) -> None:
         self.videoLabel = videoLabel
         self.vid = cv2.VideoCapture(0)
         self.previous3 = [[1], [2], [3]]
@@ -160,8 +184,8 @@ class CubeScanner:
                 self.videoLabel.after(10, self.updateFrame)
             return
 
-        blurred = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-        blurred = cv2.GaussianBlur(blurred, (5, 5), cv2.BORDER_DEFAULT)
+        grayed = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+        blurred = cv2.GaussianBlur(grayed, (5, 5), cv2.BORDER_DEFAULT)
         canny = cv2.Canny(blurred, 20, 40)
         kernel = np.ones((3, 3), np.uint8)
         dilated = cv2.dilate(canny, kernel, iterations=2)
@@ -171,8 +195,9 @@ class CubeScanner:
         contours = sorted(contours, key=cv2.contourArea, reverse=True)
 
         output = frame.copy()
-        counter = 12
+        counter = 30
         faceContours = []
+        totalWidth = 0
         for c in contours:
             peri = cv2.arcLength(c, True)
             approx = cv2.approxPolyDP(c, 0.05 * peri, True)
@@ -182,8 +207,11 @@ class CubeScanner:
                 counter -= 1
                 if counter == 0:
                     break
+                totalWidth += width
                 faceContours.append(approx)
-                cv2.drawContours(output, [approx], -1, (255, 0, 0), 5)
+
+        if len(faceContours) > 0:
+            faceContours = filterContours(faceContours, (totalWidth / len(faceContours)) * 4)
 
         if len(faceContours) > 4:
             avgArea = sum([cv2.contourArea(faceContours[i]) for i in range(len(faceContours))]) / len(faceContours)
@@ -194,6 +222,8 @@ class CubeScanner:
                     for ii in range(4):
                         faceCornersX.append(faceContours[i][ii][0][0])
                         faceCornersY.append(faceContours[i][ii][0][1])
+
+                    cv2.drawContours(output, [faceContours[i]], -1, (255, 0, 0), 5)
 
             if len(faceCornersX) >= 4 and len(faceCornersY) >= 4:
                 areaRect = (max(faceCornersX) - min(faceCornersX)) * (max(faceCornersY) - min(faceCornersY))

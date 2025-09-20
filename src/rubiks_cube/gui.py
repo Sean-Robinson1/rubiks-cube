@@ -6,7 +6,7 @@ from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 from .colour_calibration import CubeCalibrator
 from .constants import FACE_NORMALS
 from .cube import Cube
-from .cube_plotter import Axes3D, createFig, plotRubiks3D
+from .cube_plotter import Axes3D, CubePlotter
 from .cube_scanner import CubeScanner
 
 
@@ -52,15 +52,15 @@ class GUI:
     def __init__(self, cube: Cube) -> None:
         self.cube = cube
         self.canvas = None
-        self.fig, self.ax = createFig()
         self.scanner = None
         self.tk = tk.Tk()
         self.tk.title("Rubik's Cube")
         self.tk.protocol("WM_DELETE_WINDOW", self.onClose)
         self.w, self.h = self.tk.winfo_screenwidth(), self.tk.winfo_screenheight()
-        self.tk.geometry(f"{self.w//2}x{self.h//2}")
+        self.tk.geometry(f"{self.w}x{self.h}")
         self.mainloopStarted = False
         self.calibratedColours = None
+        self.plotter = CubePlotter()
 
     def onClose(self) -> None:
         """Called when the main window is closed: stop scanner, release camera and exit."""
@@ -87,7 +87,7 @@ class GUI:
         if self.calibratedColours is not None:
             plottingList = [self.calibratedColours[col] / 256 for col in plottingList]
 
-        self.fig, self.ax = plotRubiks3D(plottingList, self.ax, self.fig)
+        self.plotter.plotRubiks3D(plottingList)
         self.canvas.draw()
 
     def solveCube(self) -> None:
@@ -214,19 +214,19 @@ class GUI:
 
         def cancel_scan():
             self.scanner.stop()
-            self.fig, self.ax = createFig()
+            self.plotter = CubePlotter()
             self.createTkWindow()
 
         def end_scan():
             self.scanner.stop()
-            self.fig, self.ax = createFig()
+            self.plotter = CubePlotter()
             self.cube.initialiseFaces(self.scanner.getCubeString())
             self.createTkWindow()
 
-        cancel_btn = tk.Button(btn_row, text="Cancel", font=("Arial", 13), bg="lightcoral", command=cancel_scan)
+        cancel_btn = tk.Button(btn_row, text="Cancel", font=("Arial", 20), bg="lightcoral", command=cancel_scan)
         cancel_btn.pack(side=tk.LEFT, padx=5)
 
-        end_btn = tk.Button(btn_row, text="End Scan", font=("Arial", 13), bg="lightgreen", command=end_scan)
+        end_btn = tk.Button(btn_row, text="End Scan", font=("Arial", 20), bg="lightgreen", command=end_scan)
         end_btn.pack(side=tk.LEFT, padx=5)
 
     def startCalibration(self) -> None:
@@ -245,19 +245,19 @@ class GUI:
 
         def cancel_cal():
             self.calibrator.stop()
-            self.fig, self.ax = createFig()
+            self.plotter = CubePlotter()
             self.createTkWindow()
 
         def save_cal():
             self.calibrator.stop()
-            self.fig, self.ax = createFig()
+            self.plotter = CubePlotter()
             self.calibratedColours = self.calibrator.getAverages()
             self.createTkWindow()
 
-        cancel_btn = tk.Button(btn_row, text="Cancel", font=("Arial", 13), bg="lightcoral", command=cancel_cal)
+        cancel_btn = tk.Button(btn_row, text="Cancel", font=("Arial", 20), bg="lightcoral", command=cancel_cal)
         cancel_btn.pack(side=tk.LEFT, padx=5)
 
-        save_btn = tk.Button(btn_row, text="Save Calibration", font=("Arial", 13), bg="lightgreen", command=save_cal)
+        save_btn = tk.Button(btn_row, text="Save Calibration", font=("Arial", 20), bg="lightgreen", command=save_cal)
         save_btn.pack(side=tk.LEFT, padx=5)
 
     def createTkWindow(self) -> None:
@@ -268,18 +268,18 @@ class GUI:
         main_container = tk.Frame(self.tk)
         main_container.pack(fill=tk.BOTH, expand=True, padx=10, pady=10)
 
-        canvas_width = int((self.w // 2) * 0.6)
-        button_width = int((self.w // 2) * 0.35)
+        canvas_width = int((self.w) * 0.6)
+        button_width = int((self.w) * 0.35)
 
         canvas_frame = tk.Frame(main_container, bg="lightgray", width=canvas_width)
-        canvas_frame.pack(side=tk.LEFT, fill=tk.Y)
+        canvas_frame.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
         canvas_frame.pack_propagate(False)
 
-        self.canvas = FigureCanvasTkAgg(self.fig, master=canvas_frame)
-        self.canvas.get_tk_widget().pack(fill=tk.BOTH, expand=False)
+        self.canvas = FigureCanvasTkAgg(self.plotter.fig, master=canvas_frame)
+        self.canvas.get_tk_widget().pack(fill=tk.BOTH, expand=True)
 
         self.plot3D()
-        self.ax.view_init(elev=210, azim=120)
+        self.plotter.ax.view_init(elev=210, azim=120)
 
         button_frame = tk.Frame(main_container, bg="white", width=button_width)
         button_frame.pack(side=tk.RIGHT, fill=tk.Y, padx=(20, 0))
@@ -300,17 +300,18 @@ class GUI:
             btn = tk.Button(
                 button_container,
                 text=name,
-                font=("Arial", 9, "bold"),
+                font=("Arial", 18, "bold"),
                 width=12,
                 height=2,
                 bg="lightblue",
                 activebackground="darkblue",
                 activeforeground="white",
                 command=lambda name=name: [
-                    self.cube.calculateFaces(*getRelativeFaces(self.ax)),
+                    self.cube.calculateFaces(*getRelativeFaces(self.plotter.ax)),
                     self.cube.executeSequenceRelative(name),
-                    self.plot3D(),
-                ],  # Update the canvas after rotation
+                    self.plotter.animateMove(self.cube.getMoveRelative(name), canvas=self.canvas),
+                    self.canvas.draw(),
+                ],
             )
             btn.grid(row=i % 6, column=i // 6, padx=5, pady=5, sticky="nsew")
 
@@ -323,18 +324,18 @@ class GUI:
         reset_btn = tk.Button(
             control_frame,
             text="Reset View",
-            font=("Arial", 10),
+            font=("Arial", 18, "bold"),
             bg="lightcoral",
             activebackground="darkred",
             activeforeground="white",
-            command=lambda: [self.ax.view_init(elev=210, azim=120), self.plot3D()],
+            command=lambda: [self.plotter.ax.view_init(elev=210, azim=120), self.plot3D()],
         )
         reset_btn.grid(row=0, column=0, sticky="ew", pady=5, padx=(0, 5))
 
         scramble_btn = tk.Button(
             control_frame,
             text="Scramble",
-            font=("Arial", 10),
+            font=("Arial", 18, "bold"),
             bg="lightgreen",
             activebackground="darkgreen",
             activeforeground="white",
@@ -345,7 +346,7 @@ class GUI:
         calibrate_btn = tk.Button(
             control_frame,
             text="Calibrate Colours",
-            font=("Arial", 13),
+            font=("Arial", 26, "bold"),
             bg="lightblue",
             activebackground="deepskyblue",
             activeforeground="white",
@@ -356,7 +357,7 @@ class GUI:
         scan_btn = tk.Button(
             control_frame,
             text="Scan Cube",
-            font=("Arial", 13),
+            font=("Arial", 26, "bold"),
             bg="lightyellow",
             activebackground="goldenrod",
             activeforeground="white",
@@ -367,7 +368,7 @@ class GUI:
         solve_btn = tk.Button(
             control_frame,
             text="Solve",
-            font=("Arial", 13),
+            font=("Arial", 26, "bold"),
             bg="lightgreen",
             activebackground="darkgreen",
             activeforeground="white",
