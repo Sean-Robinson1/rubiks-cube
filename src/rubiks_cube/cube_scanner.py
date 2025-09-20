@@ -1,3 +1,4 @@
+import logging
 from tkinter import *
 
 import cv2
@@ -16,6 +17,7 @@ class CubeScanner:
             videoLabel (Label): The Tkinter label to display the video feed.
             calibratedColours (dict[str, np.ndarray], optional): A dictionary of calibrated colours. Defaults to None.
         """
+        logging.info("Initialising CubeScanner")
         self.videoLabel = videoLabel
         self.vid = cv2.VideoCapture(0)
         self.previousFaces = {
@@ -118,6 +120,8 @@ class CubeScanner:
                         cropped = frame[minY:maxY, minX:maxX]
                         colours = extractColours(cropped, self.colours)
 
+                        logging.info(f"Detected colours: {colours}")
+
                         # compares to previous scan
                         if self.previous == colours:
                             self.previousCount += 1
@@ -148,7 +152,7 @@ class CubeScanner:
             self.videoLabel.config(image=self.photo)
 
         except Exception as e:
-            print(f"Error updating image: {e}")
+            logging.warning(f"Error updating image: {e}")
 
         # Schedule next frame only if still running and label exists
         if self.running and self.videoLabel.winfo_exists():
@@ -177,6 +181,6 @@ class CubeScanner:
             if cubeString.count(colour) != 9:
                 return None
 
-        print(cubeString)
+        logging.debug(f"Scanned cube: {cubeString}")
 
         return cubeString

@@ -1,3 +1,4 @@
+import logging
 import tkinter as tk
 
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
@@ -11,6 +12,8 @@ from .plotter_utils import getRelativeFaces
 
 class GUI:
     def __init__(self, cube: Cube) -> None:
+        """Initialises the GUI with a Cube object."""
+        logging.info("Initialising GUI")
         self.cube = cube
         self.canvas = None
         self.scanner = None
@@ -27,17 +30,7 @@ class GUI:
     def onClose(self) -> None:
         """Called when the main window is closed: stop scanner, release camera and exit."""
         if getattr(self, "scanner", None):
-            try:
-                self.scanner.stop()
-            except Exception:
-                pass
-
-            try:
-                if hasattr(self.scanner, "vid") and self.scanner.vid is not None:
-                    if self.scanner.vid.isOpened():
-                        self.scanner.vid.release()
-            except Exception:
-                pass
+            self.scanner.stop()
 
         self.tk.quit()
         self.tk.destroy()
@@ -49,11 +42,15 @@ class GUI:
         if self.calibratedColours is not None:
             plottingList = [self.calibratedColours[col] / 256 for col in plottingList]
 
+        logging.info(f"Plotting list: {plottingList}")
+
         self.plotter.plotRubiks3D(plottingList)
         self.canvas.draw()
 
     def solveCube(self) -> None:
         """Solves the cube, and creates a TopLevel window with the moves to solve the cube."""
+        logging.info("Solving cube")
+
         self.cube.solve()
         moves = " ".join(self.cube.optimisedMoves)
 
@@ -76,15 +73,13 @@ class GUI:
 
         header = tk.Frame(frame, bg="#f8f9fa")
         header.pack(fill=tk.X, pady=(0, 8))
-        tk.Label(header, text="Cube Solution", bg="#f8f9fa", fg="#111", font=("Segoe UI", 14, "bold")).pack(
-            side=tk.LEFT
-        )
+        tk.Label(header, text="Cube Solution", bg="#f8f9fa", fg="#111", font=("Arial", 20, "bold")).pack(side=tk.LEFT)
         tk.Label(
             header,
             text=f"{len(self.cube.optimisedMoves)} moves",
             bg="#f8f9fa",
             fg="#666",
-            font=("Segoe UI", 10),
+            font=("Arial", 16),
         ).pack(side=tk.RIGHT)
 
         btn_frame = tk.Frame(frame, bg="#f8f9fa", height=70)
@@ -99,7 +94,7 @@ class GUI:
             text_frame,
             wrap="word",
             yscrollcommand=scrollbar.set,
-            font=("Consolas", 11),
+            font=("Consolas", 15),
             bg="white",
             fg="#222",
             relief=tk.FLAT,
@@ -118,6 +113,7 @@ class GUI:
                 self.tk.clipboard_clear()
                 self.tk.clipboard_append(moves)
             except Exception:
+                logging.error("Failed to copy moves to clipboard")
                 pass
 
         def close():
@@ -136,7 +132,7 @@ class GUI:
             bg="#2B7CFF",
             fg="white",
             activebackground="#1A5FD6",
-            font=("Segoe UI", 11, "bold"),
+            font=("Arial", 16, "bold"),
             bd=0,
             relief=tk.FLAT,
             cursor="hand2",
@@ -152,7 +148,7 @@ class GUI:
             bg="#E9ECEF",
             fg="#222",
             activebackground="#DDE3EA",
-            font=("Segoe UI", 11, "bold"),
+            font=("Arial", 16, "bold"),
             bd=0,
             relief=tk.FLAT,
             cursor="hand2",
@@ -164,6 +160,8 @@ class GUI:
 
     def startScan(self) -> None:
         """Starts scanning the cube from the webcam and embeds it in the tkinter window."""
+        logging.info("Starting cube scan")
+
         for widget in self.tk.winfo_children():
             widget.destroy()
 
@@ -175,11 +173,13 @@ class GUI:
         btn_row.pack(side=tk.BOTTOM, pady=10)
 
         def cancel_scan():
+            logging.info("Cancelling cube scan")
             self.scanner.stop()
             self.plotter = CubePlotter()
             self.createTkWindow()
 
         def end_scan():
+            logging.info("Ending cube scan")
             self.scanner.stop()
             self.plotter = CubePlotter()
             self.cube.initialiseFaces(self.scanner.getCubeString())
@@ -193,6 +193,8 @@ class GUI:
 
     def startCalibration(self) -> None:
         """Start a colour calibration UI embedded in the Tk window."""
+        logging.info("Starting colour calibration")
+
         for widget in self.tk.winfo_children():
             widget.destroy()
 
@@ -206,11 +208,13 @@ class GUI:
         btn_row.pack(side=tk.BOTTOM, pady=10)
 
         def cancel_cal():
+            logging.info("Cancelling colour calibration")
             self.calibrator.stop()
             self.plotter = CubePlotter()
             self.createTkWindow()
 
         def save_cal():
+            logging.info("Saving colour calibration")
             self.calibrator.stop()
             self.plotter = CubePlotter()
             self.calibratedColours = self.calibrator.getAverages()
@@ -228,19 +232,22 @@ class GUI:
         Args:
             move (str): The move to perform (e.g., "W", "R'", etc.).
         """
+        logging.info(f"Rotating cube with move: {move}")
+
+        self.cube.executeSequenceRelative(move)
         if self.showAnimations:
-            self.cube.executeSequenceRelative(move)
             # storing animation as variable to prevent garbage collection
             self.plotter.animateMove(
                 self.cube.getMoveRelative(move), canvas=self.canvas, cubeString="".join(self.cube.getPlottingList())
             )
             self.canvas.draw()
         else:
-            self.cube.executeSequenceRelative(move)
             self.plot3D()
 
     def createTkWindow(self) -> None:
         """Initialises the tk window, as well as all frames, buttons and the cube display."""
+        logging.info("Creating main Tkinter window")
+
         for widget in self.tk.winfo_children():
             widget.destroy()
 
@@ -369,5 +376,6 @@ class GUI:
         anim_btn.grid(row=4, column=0, columnspan=2, sticky="ew", pady=5)
 
         if not self.mainloopStarted:
+            logging.info("Starting Tkinter main loop")
             self.mainloopStarted = True
             self.tk.mainloop()
