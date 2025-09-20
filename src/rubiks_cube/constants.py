@@ -61,7 +61,8 @@ WHITE_CROSS_SOLVED_MASKS = {
                 ('G','...WW.....G..G........................................'),
                 ('R','....W..W...........R..R...............................'),
                 ('B','....WW......................B..B......................'),
-                ('O','.W..W................................O..O.............')}
+                ('O','.W..W................................O..O.............')
+                }
 
 # masks that can be solved with a single FU'RU or F'U'RU move
 WHITE_CROSS_INSERTION_MASKS = {
@@ -73,7 +74,7 @@ WHITE_CROSS_INSERTION_MASKS = {
                     ('B', '....W..........................B..W...............B...', "F'U'RU"),
                     ('O', '.O..W................................W..O.............', "FU'RU"),
                     ('O', '....W...................................O..W........O.', "F'U'RU")
-}
+                    }
 
 # a combination of all the above masks, used for recursion
 WHITE_CROSS_RECURSION_MASKS = {

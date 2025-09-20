@@ -39,6 +39,10 @@ class Cube:
         return hash(str(self))
 
     @property
+    def isSolved(self) -> bool:
+        return str(self) == SOLVED_MASK
+
+    @property
     def optimisedMoves(self) -> list[str]:
         return optimiseMoves(self.movesMade)
 
@@ -74,7 +78,14 @@ class Cube:
         self.front = front
         self.bottom = self.getOppositeFace(top)
         self.back = self.getOppositeFace(front)
-        self.left = FACE_NUM_TO_COLOUR[((COLOUR_TO_FACE_NUM[self.front] - 2) % 4) + 1]
+
+        if self.front != "W" and self.front != "Y":
+            self.left = FACE_NUM_TO_COLOUR[((COLOUR_TO_FACE_NUM[self.front] - 2) % 4) + 1]
+        elif self.front == "W":
+            self.left = self.getRightFace(self.top)
+        else:
+            self.left = self.getLeftFace(self.top)
+
         self.right = self.getOppositeFace(self.left)
 
     def getPlottingList(self) -> list[str]:
@@ -822,9 +833,8 @@ class Cube:
         Returns:
             list[str] | None: A list of moves to reach one of the masks, or None if no solution was found.
         """
-        cache = {}
         if not any(map(lambda x: self.checkMask(x), masks)):
-            result = self.findMasksRecursion(masks, depth, str(self), cache)
+            result = self.findMasksRecursion(masks, depth, str(self))
             if result is not None:
                 return result
             else:
@@ -832,25 +842,19 @@ class Cube:
 
         return []
 
-    def findMasksRecursion(self, masks: list[str], depth: int, state: str, cache: dict) -> list[str] | None:
+    def findMasksRecursion(self, masks: list[str], depth: int, state: str) -> list[str] | None:
         """Performs DFS until a solution is found or the maximum depth is reached. Has some optimisations.
 
         Args:
             masks (list[str]): A list of masks to search for.
             depth (int): The maximum depth to search.
             state (str): The current state of the cube as a string.
-            cache (dict): A dictionary to cache previously computed states.
 
         Returns:
             list[str] | None: A list of moves to reach one of the masks, or None if no solution was found.
         """
-        cache_key = state
-        if cache_key in cache:
-            return cache[cache_key]
-
         for mask in masks:
             if checkMask(mask, state):
-                cache[cache_key] = []
                 return []
 
         if depth == 0:
@@ -858,11 +862,10 @@ class Cube:
 
         for move in range(12):
             newstate = rotate(state, POSSIBLE_ROTATIONS[move])
-            result = self.findMasksRecursion(masks, depth - 1, newstate, cache)
+            result = self.findMasksRecursion(masks, depth - 1, newstate)
 
             if result is not None:
-                cache[cache_key] = [POSSIBLE_ROTATIONS[move]] + result
-                return cache[cache_key]
+                return [POSSIBLE_ROTATIONS[move]] + result
 
         return None
 

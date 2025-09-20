@@ -15,9 +15,13 @@ jobs:
         run: |
           pip install -e .
           pip install pre-commit
+          pip install pytest
 
       - name: Run pre-commit hooks (format/lint)
         run: pre-commit run --all-files --show-diff-on-failure
+
+      - name: Run tests
+        run: pytest ./tests/test_*.py
 
       - name: Run benchmark / CI test
         run: python tests/ci_test.py
