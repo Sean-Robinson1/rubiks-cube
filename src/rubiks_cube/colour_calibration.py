@@ -48,9 +48,6 @@ class CubeCalibrator:
             event (tk.Event): The key press event.
         """
         key = getattr(event, "char", "").lower()
-        if key == "q":
-            self.stop()
-            return
         if key in FACE_KEYS:
             self.currentFace = FACE_KEYS[key]
 

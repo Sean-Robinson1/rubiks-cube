@@ -24,7 +24,7 @@ class CubePlotter:
         self.fig, self.ax = plt.subplots(subplot_kw={"projection": "3d"})
 
     def makePlane(
-        self, xmin: float, xmax: float, ymin: float, ymax: float, zmin: float, zmax: float, colour: str
+        self, xmin: float, xmax: float, ymin: float, ymax: float, zmin: float, zmax: float, colour: str, colourName: str
     ) -> dict:
         """Create a plane dict given its bounding box.
 
@@ -50,13 +50,13 @@ class CubePlotter:
             center = np.array([(xmin + xmax) / 2, (ymin + ymax) / 2, zmin])
             corners = np.array([[xmin, ymin, zmin], [xmax, ymin, zmin], [xmax, ymax, zmax], [xmin, ymax, zmax]])
 
-        return {"center": center, "corners": corners, "colour": colour}
+        return {"center": center, "corners": corners, "colour": colour, "colourName": colourName}
 
     def plotRubiks3D(self, colours: list[list[str]]) -> tuple[plt.Figure, Axes3D, list[dict]]:
         """Create plane data for a Rubik's Cube and plot them.
 
         Args:
-            colours (list[list[str]]): A flat list (length 54) of facelet colours.
+            colours (list[list[str]]): A flat list (length 54) of colours.
 
         Returns:
             tuple[plt.Figure, Axes3D, list[dict]]: The figure, axis, and list of plane dicts.
@@ -65,12 +65,23 @@ class CubePlotter:
         counter = 0
         self.ax.cla()
 
+        colourNames = ["White", "Yellow", "Red", "Orange", "Blue", "Green"]
+
         # Faces perpendicular to z-axis (White/Yellow)
         for z in [0, 3]:
             for i in range(3):
                 for j in range(3):
                     self.planes.append(
-                        self.makePlane(xmin=i, xmax=i + 1, ymin=j, ymax=j + 1, zmin=z, zmax=z, colour=colours[counter])
+                        self.makePlane(
+                            xmin=i,
+                            xmax=i + 1,
+                            ymin=j,
+                            ymax=j + 1,
+                            zmin=z,
+                            zmax=z,
+                            colour=colours[counter],
+                            colourName=colourNames[counter // 9],
+                        )
                     )
                     counter += 1
 
@@ -79,7 +90,16 @@ class CubePlotter:
             for i in range(3):
                 for j in range(3):
                     self.planes.append(
-                        self.makePlane(xmin=x, xmax=x, ymin=j, ymax=j + 1, zmin=i, zmax=i + 1, colour=colours[counter])
+                        self.makePlane(
+                            xmin=x,
+                            xmax=x,
+                            ymin=j,
+                            ymax=j + 1,
+                            zmin=i,
+                            zmax=i + 1,
+                            colour=colours[counter],
+                            colourName=colourNames[counter // 9],
+                        )
                     )
                     counter += 1
 
@@ -88,7 +108,16 @@ class CubePlotter:
             for i in range(3):
                 for j in range(3):
                     self.planes.append(
-                        self.makePlane(xmin=j, xmax=j + 1, ymin=y, ymax=y, zmin=i, zmax=i + 1, colour=colours[counter])
+                        self.makePlane(
+                            xmin=j,
+                            xmax=j + 1,
+                            ymin=y,
+                            ymax=y,
+                            zmin=i,
+                            zmax=i + 1,
+                            colour=colours[counter],
+                            colourName=colourNames[counter // 9],
+                        )
                     )
                     counter += 1
 
@@ -184,11 +213,11 @@ class CubePlotter:
 
             self.makeMove(move, angle=direction * np.pi / 2)
             for p in self.planes:
-                colours[CENTER_ORDERINGS[tuple(map(lambda x: round(x, 2), p["center"]))]] = p["colour"]
+                colours[CENTER_ORDERINGS[tuple(map(lambda x: round(x, 2), p["center"]))]] = p["colourName"]
 
             colourString = "".join([c for c in colours])
 
-            self.makeMove(move, angle=-direction * np.pi / 2)  # revert the move
+            self.makeMove(move, angle=-direction * np.pi / 2)
 
             if colourString != cubeString:
                 direction *= -1

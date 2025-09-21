@@ -26,6 +26,7 @@ class GUI:
         self.calibratedColours = None
         self.showAnimations = True
         self.plotter = CubePlotter()
+        self.ani = None
 
     def onClose(self) -> None:
         """Called when the main window is closed: stop scanner, release camera and exit."""
@@ -237,7 +238,7 @@ class GUI:
         self.cube.executeSequenceRelative(move)
         if self.showAnimations:
             # storing animation as variable to prevent garbage collection
-            self.plotter.animateMove(
+            self.ani = self.plotter.animateMove(
                 self.cube.getMoveRelative(move), canvas=self.canvas, cubeString="".join(self.cube.getPlottingList())
             )
             self.canvas.draw()
@@ -323,7 +324,7 @@ class GUI:
             bg="lightgreen",
             activebackground="darkgreen",
             activeforeground="white",
-            command=lambda: [self.cube.randomiseCube(), self.plot3D()],
+            command=lambda: [self.cube.randomise(), self.plot3D()],
         )
         scramble_btn.grid(row=0, column=1, sticky="ew", pady=5, padx=(5, 0))
 
