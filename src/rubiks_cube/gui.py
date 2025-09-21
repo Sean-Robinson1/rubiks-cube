@@ -273,7 +273,7 @@ class GUI:
         button_frame.pack_propagate(False)
 
         title_label = tk.Label(button_frame, text="Cube Rotations", font=("Arial", 25, "bold"), bg="white")
-        title_label.pack(pady=(10, 20))
+        title_label.pack(pady=5)
 
         button_names = ["R", "L", "U", "D", "F", "B", "R'", "L'", "U'", "D'", "F'", "B'"]
 
@@ -287,9 +287,9 @@ class GUI:
             btn = tk.Button(
                 button_container,
                 text=name,
-                font=("Arial", 18, "bold"),
+                font=("Arial", 27, "bold"),
                 width=12,
-                height=2,
+                height=1,
                 bg="lightblue",
                 activebackground="darkblue",
                 activeforeground="white",
@@ -331,7 +331,7 @@ class GUI:
         calibrate_btn = tk.Button(
             control_frame,
             text="Calibrate Colours",
-            font=("Arial", 26, "bold"),
+            font=("Arial", 24, "bold"),
             bg="lightblue",
             activebackground="deepskyblue",
             activeforeground="white",
@@ -342,7 +342,7 @@ class GUI:
         scan_btn = tk.Button(
             control_frame,
             text="Scan Cube",
-            font=("Arial", 26, "bold"),
+            font=("Arial", 24, "bold"),
             bg="lightyellow",
             activebackground="goldenrod",
             activeforeground="white",
@@ -353,7 +353,7 @@ class GUI:
         solve_btn = tk.Button(
             control_frame,
             text="Solve",
-            font=("Arial", 26, "bold"),
+            font=("Arial", 24, "bold"),
             bg="lightgreen",
             activebackground="darkgreen",
             activeforeground="white",
