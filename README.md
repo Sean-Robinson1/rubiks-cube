@@ -96,7 +96,6 @@ CI runs the same checks; the job will fail if the repo is not formatted accordin
   - `cube_plotter.py`        — 3D plotting utilities
   - `cube_scanner.py`        — Webcam scanner
   - `colour_calibration.py`  — Colour calibration GUI for webcam scanning
-  - `dominant_colour.py`     — Colour extraction helpers
   - `constants.py`           — Masks and constants
   - `plotter_utils.py`       — Plotting helper functions
   - `scanner_utils.py`       — Scanning helper functions

@@ -5,8 +5,7 @@ import numpy as np
 from PIL import Image, ImageTk
 
 from .constants import FACE_KEYS
-from .dominant_colour import getDominantColours
-from .scanner_utils import bgr2rgb
+from .scanner_utils import bgr2rgb, getDominantColours
 
 
 class CubeCalibrator:
