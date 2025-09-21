@@ -37,6 +37,28 @@ def checkMask(mask: str, state: str) -> bool:
     return True
 
 
+def combineMasks(mask1: str, mask2: str) -> str:
+    """Combines two masks. If they both specify a certain square differently,
+    priority will be given to mask1, and the output mask will take the value
+    mask1 assigns to that square.
+
+    Args:
+        mask1 (str): The first mask to combine.
+        mask2 (str): The second mask to combine.
+
+    Returns:
+        str: The combined mask.
+    """
+    out = ""
+    for i in range(len(mask1)):
+        if mask1[i] == ".":
+            out += mask2[i]
+        else:
+            out += mask1[i]
+
+    return out
+
+
 def optimiseMoves(moves: list[str]) -> list[str]:
     """
     Looks through a list of moves and applies general rules to reduce the

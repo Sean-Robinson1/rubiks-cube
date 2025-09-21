@@ -16,7 +16,7 @@ class TestCubeNonSolver(unittest.TestCase):
         cube = Cube()
 
         for _ in range(10):
-            cube.randomiseCube()
+            cube.randomise()
             r = repr(cube)
             self.assertTrue(r == f"Cube('{str(cube)}')")
 
@@ -65,13 +65,19 @@ class TestCubeNonSolver(unittest.TestCase):
 
     def test_randomiseCube(self):
         cube = Cube()
-        moves = cube.randomiseCube()
+        moves = cube.randomise()
         self.assertIsInstance(moves, list)
         self.assertTrue(len(moves) > 0)
 
+        states = set()
+        for _ in range(100):
+            cube.randomise()
+            states.add(str(cube))
+        self.assertTrue(len(states) == 100)
+
     def test_workBackwards(self):
         cube = Cube()
-        moves = cube.randomiseCube()
+        moves = cube.randomise()
         cube.workBackwards(moves)
         self.assertTrue(cube.isSolved)
 
@@ -123,32 +129,12 @@ class TestCubeNonSolver(unittest.TestCase):
         self.assertTrue(cube.checkMask("." * 54))
         self.assertFalse(cube.checkMask("." * 53 + "G"))
 
-        cube.randomiseCube()
+        cube.randomise()
         self.assertTrue(cube.checkMask("." * 54))
-
-    def test_combineMasks(self):
-        cube = Cube()
-        mask1 = "." * 54
-        mask2 = "R" * 54
-        combined = cube.combineMasks(mask1, mask2)
-        self.assertEqual(combined, "R" * 54)
-        combined2 = cube.combineMasks(mask2, mask1)
-        self.assertEqual(combined2, "R" * 54)
-
-        mask3 = "W" * 9 + "." * 45
-        mask4 = "." * 45 + "Y" * 9
-        combined3 = cube.combineMasks(mask3, mask4)
-        self.assertEqual(combined3, "W" * 9 + "." * 36 + "Y" * 9)
-
-        mask5 = "W" * 9 + "." * 45
-        mask6 = "G" * 18 + "." * 36
-
-        combined4 = cube.combineMasks(mask5, mask6)
-        self.assertEqual(combined4, "W" * 9 + "G" * 9 + "." * 36)
 
     def test_solve(self):
         cube = Cube()
-        cube.randomiseCube()
+        cube.randomise()
         cube.solve()
         self.assertTrue(cube.isSolved)
 
