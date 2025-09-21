@@ -39,17 +39,17 @@ rubiks-cube
 
 - **Cube Manipulation**
   - Rotate the cube using the on-screen buttons. Rotations are automatically applied based on the current orientation.
-  - Click 'Scramble' to randomise the cube.
-  - Click 'Reset View' to restore the default viewing angle.
+  - Click `Scramble` to randomise the cube.
+  - Click `Reset View` to restore the default viewing angle.
 
 - **Colour Calibration & Scanning**
-  - Click 'Calibrate Colours' to open the webcam. Hold a solved cube inside the rectangle and press the key matching the first letter of each colour to calibrate. This updates the internal colour detection. You will see the colours update in the top left. (As an example, if you want to calibrate the white colour hold the white face inside the rectangle and hold 'w')
-  - Click 'Scan Cube' to scan a cube using the webcam. Hold the cube up; it will be detected and scanned automatically. The scanned cube map will be displayed.
+  - Click `Calibrate Colours` to open the webcam. Hold a solved cube inside the rectangle and press the key matching the first letter of each colour to calibrate. This updates the internal colour detection. You will see the colours update in the top left. (As an example, if you want to calibrate the white colour hold the white face inside the rectangle and hold 'w')
+  - Click `Scan Cube` to scan a cube using the webcam. Hold the cube up; it will be detected and scanned automatically. The scanned cube map will be displayed.
 
 - **Solving**
-  - Click 'Solve' to compute the solution. A popup will show the moves required to solve the cube.
+  - Click `Solve` to compute the solution. A popup will show the moves required to solve the cube.
 
-> The UI is designed to be intuitive. For best results, ensure your webcam is well-lit and the cube is clearly visible. Also if you have a reflective cube, this can affect the performance of the scanning.
+> The UI is designed to be intuitive. For best results, ensure your webcam is well-lit and the cube is clearly visible. Also if you have a reflective cube or one with text on it, this can affect the performance of the scanning.
 
 ## UI
 
@@ -87,22 +87,26 @@ pre-commit run --all-files
 CI runs the same checks; the job will fail if the repo is not formatted according to rules.
 
 ## Repository layout
-- src/rubiks_cube/
-  - __init__.py
-  - main.py               — Entrypoint
-  - gui.py                — Initialises and handles GUI logic
-  - cube.py               — Cube class and solver logic
-  - cube_utils.py         — Cube helper functions
-  - cube_plotter.py       — 3D plotting utilities
-  - cube_scanner.py       — Webcam scanner
-  - colour_calibration.py — Colour calibration GUI for webcam scanning
-  - dominant_colour.py    — Colour extraction helpers
-  - constants.py          — Masks and constants
-- tests/
-  - ci_test.py            — CI benchmark
-- .github/workflows/ci.yml — CI workflow
-- pyproject.toml          — packaging and dependencies
-- .pre-commit-config.yaml — formatting/lint hooks
-- README.md, LICENSE, .gitignore
+- `src/rubiks_cube/`
+  - `__init__.py`
+  - `main.py`                — Entrypoint
+  - `gui.py`                 — Initialises and handles GUI logic
+  - `cube.py`                — Cube class and solver logic
+  - `cube_utils.py`          — Cube helper functions
+  - `cube_plotter.py`        — 3D plotting utilities
+  - `cube_scanner.py`        — Webcam scanner
+  - `colour_calibration.py`  — Colour calibration GUI for webcam scanning
+  - `dominant_colour.py`     — Colour extraction helpers
+  - `constants.py`           — Masks and constants
+  - `plotter_utils.py`       — Plotting helper functions
+  - `scanner_utils.py`       — Scanning helper functions
+- `tests/`
+  - `ci_test.py`             — CI benchmark
+  - `test_cube_utils.py`     — Cube utility tests
+  - `test_cube.py`           — Cube tests 
+- `.github/workflows/ci.yml` — CI workflow
+- `pyproject.toml`           — packaging and dependencies
+- `.pre-commit-config.yaml`  — formatting/lint hooks
+- `README.md`, `LICENSE`, `.gitignore`, `requirements.txt`
 
-> **Note:** - cube.py contains most of the program's logic
+> **Note:** - `cube.py` contains most of the program's logic
