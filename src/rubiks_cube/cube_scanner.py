@@ -91,7 +91,7 @@ class CubeScanner:
                 totalWidth += width
                 faceContours.append(approx)
 
-        if len(faceContours) > 4:
+        if len(faceContours) > 3:
             faceContours = filterContours(faceContours, (totalWidth / len(faceContours)) * 4)
             avgArea = sum([cv2.contourArea(faceContours[i]) for i in range(len(faceContours))]) / len(faceContours)
 
@@ -106,7 +106,7 @@ class CubeScanner:
                     cv2.drawContours(output, [faceContours[i]], -1, (255, 0, 0), 5)
 
             # checking if there are enough corners to make a square
-            if len(faceCornersX) >= 4 and len(faceCornersY) >= 4:
+            if len(faceCornersX) > 4 and len(faceCornersY) > 4:
                 maxX, maxY = max(faceCornersX), max(faceCornersY)
                 minX, minY = min(faceCornersX), min(faceCornersY)
 

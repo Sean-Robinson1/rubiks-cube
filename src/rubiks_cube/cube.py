@@ -614,7 +614,7 @@ class Cube:
 
             # if no pieces were inserted or found, use pathfinding to get a piece into position
 
-            moves = self.startPathfinding(recurseMasks, 5)
+            moves = self.__startPathfinding(recurseMasks, 5)
 
             if moves is None:
                 for face, mask in solvedMasks:
@@ -650,27 +650,27 @@ class Cube:
             inserted = False
             for mask in insertionMasks:
                 if self.checkMask(mask[1]):
-                    self.insertCorner(mask[0])
+                    self.__insertCorner(mask[0])
                     inserted = True
 
             if inserted:
                 continue
 
             recurseMasks = list(map(lambda x: x[1], insertionMasks))
-            moves = self.startPathfinding(recurseMasks, 2)
+            moves = self.__startPathfinding(recurseMasks, 2)
 
             if moves is None:
                 for face, mask in solvedMasks:
-                    self.insertCorner(face + "_2")
+                    self.__insertCorner(face + "_2")
                     break
             else:
                 self.executeSequence("".join(moves))
 
             for mask in insertionMasks:
                 if self.checkMask(mask[1]):
-                    self.insertCorner(mask[0])
+                    self.__insertCorner(mask[0])
 
-    def insertCorner(self, code: str) -> None:
+    def __insertCorner(self, code: str) -> None:
         """Inserts a corner piece correctly as part of the F2L (First 2 Layers) solution,
         using the code to determine method of insertion/algorithm.
 
@@ -707,24 +707,24 @@ class Cube:
             inserted = False
             for mask in insertionMasks:
                 if self.checkMask(mask[1]):
-                    self.insertPiece(mask[0])
+                    self.__insertPiece(mask[0])
                     inserted = True
 
             if inserted:
                 continue
 
             recurseMasks = list(map(lambda x: x[1], insertionMasks))
-            moves = self.startPathfinding(recurseMasks, 2)
+            moves = self.__startPathfinding(recurseMasks, 2)
 
             if moves is None:
                 for face, mask in solvedMasks:
-                    self.insertPiece(face)
+                    self.__insertPiece(face)
             else:
                 self.executeSequence("".join(moves))
 
             for mask in insertionMasks:
                 if self.checkMask(mask[1]):
-                    self.insertPiece(mask[0])
+                    self.__insertPiece(mask[0])
 
     def solveYellowCross(self) -> None:
         """Solves the yellow cross."""
@@ -776,7 +776,7 @@ class Cube:
             else:
                 self.executeSequence("D")
 
-    def checkValidCorners(self) -> list[str]:
+    def __checkValidCorners(self) -> list[str]:
         """Checks how many of the 4 corners for the yellow face are in the correct position.
 
         Returns:
@@ -814,7 +814,7 @@ class Cube:
         """Correctly orients the yellow corners."""
 
         while True:
-            validCorners = self.checkValidCorners()
+            validCorners = self.__checkValidCorners()
             if len(validCorners) == 4:
                 return
 
@@ -824,7 +824,7 @@ class Cube:
             else:
                 for _ in range(3):
                     self.convertSequenceFromFace(validCorners[0], YELLOW_CORNERS_INSERTION_ALGORITHM)
-                    if len(self.checkValidCorners()) == 4:
+                    if len(self.__checkValidCorners()) == 4:
                         return
 
     def final(self) -> None:
@@ -835,7 +835,7 @@ class Cube:
                     self.executeSequence(FINAL_STEP_ALGORITHM)
             self.executeSequence("D")
 
-    def insertPiece(self, code: str) -> None:
+    def __insertPiece(self, code: str) -> None:
         """Correctly inserts a piece into the middle layer.
 
         Args:
@@ -849,7 +849,7 @@ class Cube:
         else:
             self.convertSequenceFromFace(face, RIGHT_FACE_INSERTION_ALGORITHM)
 
-    def startPathfinding(self, masks: list[str], depth: int = 6) -> list[str] | None:
+    def __startPathfinding(self, masks: list[str], depth: int = 6) -> list[str] | None:
         """Calls a function to perform DFS until a solution is found or the maximum depth is reached.
 
         Args:
@@ -860,7 +860,7 @@ class Cube:
             list[str] | None: A list of moves to reach one of the masks, or None if no solution was found.
         """
         if not any(map(lambda x: self.checkMask(x), masks)):
-            result = self.pathfind(masks, depth, str(self))
+            result = self.__pathfind(masks, depth, str(self))
             if result is not None:
                 return result
             else:
@@ -868,7 +868,7 @@ class Cube:
 
         return []
 
-    def pathfind(self, masks: list[str], depth: int, state: str) -> list[str] | None:
+    def __pathfind(self, masks: list[str], depth: int, state: str) -> list[str] | None:
         """Performs DFS until a solution is found or the maximum depth is reached. Has some optimisations.
 
         Args:
@@ -888,7 +888,7 @@ class Cube:
 
         for move in range(12):
             newstate = rotate(state, POSSIBLE_ROTATIONS[move])
-            result = self.pathfind(masks, depth - 1, newstate)
+            result = self.__pathfind(masks, depth - 1, newstate)
 
             if result is not None:
                 return [POSSIBLE_ROTATIONS[move]] + result

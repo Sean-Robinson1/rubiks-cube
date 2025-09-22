@@ -2,7 +2,6 @@ import matplotlib.pyplot as plt
 import numpy as np
 from matplotlib.animation import FuncAnimation
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
-from mpl_toolkits.mplot3d import Axes3D
 from mpl_toolkits.mplot3d.art3d import Poly3DCollection
 
 from .constants import AXIS_MAP, CENTER_ORDERINGS, FACE_CENTER_POSITIONS
@@ -52,7 +51,7 @@ class CubePlotter:
 
         return {"center": center, "corners": corners, "colour": colour, "colourName": colourName}
 
-    def plotRubiks3D(self, colours: list[list[str]]) -> tuple[plt.Figure, Axes3D, list[dict]]:
+    def plotRubiks3D(self, colours: list[list[str]]) -> None:
         """Create plane data for a Rubik's Cube and plot them.
 
         Args:
@@ -121,18 +120,7 @@ class CubePlotter:
                     )
                     counter += 1
 
-        self.plottingPlanes = [p["corners"] for p in self.planes]
-        self.plottingColours = [p["colour"] for p in self.planes]
-
-        poly = Poly3DCollection(self.plottingPlanes, facecolors=self.plottingColours, edgecolors="black", linewidths=7)
-        self.ax.add_collection3d(poly)
-
-        self.ax.set_xlim(0, 3)
-        self.ax.set_ylim(0, 3)
-        self.ax.set_zlim(0, 3)
-        plt.axis("off")
-
-        return self.planes
+        self.updatePlot()
 
     def getPlanesToRotate(self, move: str) -> list[int]:
         """Get the indices of planes to rotate for a given move.
