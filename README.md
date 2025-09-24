@@ -4,12 +4,12 @@ This project provides a Rubik's Cube simulator, solver, 3D plotting, benchmarkin
 It includes a `Cube` class for simulating and solving the cube, utilities for cube manipulation, and CI integration for automated testing and performance analysis.
 
 ## Features
-- **Cube simulation:** create, randomise and manipulate cubes (Cube class).
+- **Cube simulation:** create, randomise and manipulate cubes (`Cube` class).
 - **Solver:** step-by-step solution routines and move optimisation.
 - **3D plotting:** view cube state in an interactive Matplotlib/Tk window.
 - **Scanner:** capture cube state from a webcam and interpret colours.
-- **Benchmarking:** CI/locally runnable performance script (tests/ci_test.py).
-- **Tooling:** pre-commit hooks (Black/isort/Ruff) and packaging via pyproject.toml.
+- **Benchmarking:** CI/locally runnable performance script (`tests/ci_test.py`).
+- **Tooling:** pre-commit hooks (Black/isort/Ruff) and packaging via `pyproject.toml`.
 
 ## Installation
 1. Clone and cd into directory
@@ -41,6 +41,7 @@ rubiks-cube
   - Rotate the cube using the on-screen buttons. Rotations are automatically applied based on the current orientation.
   - Click `Scramble` to randomise the cube.
   - Click `Reset View` to restore the default viewing angle.
+  - Click `Animations: On/Off` to toggle whether there are visible animations when rotating the cube
 
 - **Colour Calibration & Scanning**
   - Click `Calibrate Colours` to open the webcam. Hold a solved cube inside the rectangle and press the key matching the first letter of each colour to calibrate. This updates the internal colour detection. You will see the colours update in the top left. (As an example, if you want to calibrate the white colour hold the white face inside the rectangle and hold 'w')
@@ -48,6 +49,8 @@ rubiks-cube
 
 - **Solving**
   - Click `Solve` to compute the solution. A popup will show the moves required to solve the cube.
+
+> Note there is current a minor issue if you try to rotate the cube while a face is already rotating - if the display becomes distorted then clicking `Reset View` should fix this. If not, turn animations off and make a rotation.
 
 > The UI is designed to be intuitive. For best results, ensure your webcam is well-lit and the cube is clearly visible. Also if you have a reflective cube or one with text on it, this can affect the performance of the scanning.
 
