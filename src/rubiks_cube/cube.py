@@ -16,19 +16,17 @@ class Cube:
                                       If None, the cube is initialised in a solved state.
                                       Defaults to None.
         """
-        self.faces: list[list[str]] = [[[colour] * 3 for _ in range(3)] for colour in COLOURS]
+        # the cube's state is a single 54 character string (6 faces, 9 squares each, in
+        # face-major, row-major order). This is the same representation used for pathfinding,
+        # so moves are applied directly to it and no conversion is needed to search or hash.
+        self.state: str = SOLVED_MASK
         self.initialiseFaces(startStr)
         self.calculateFaces("R", "W")
 
         self.movesMade = []
 
     def __str__(self) -> str:
-        outputString = ""
-        for face in range(6):
-            for row in self.faces[face]:
-                for square in row:
-                    outputString += square
-        return outputString
+        return self.state
 
     def __repr__(self) -> str:
         return f"Cube('{str(self)}')"
@@ -37,34 +35,34 @@ class Cube:
         return self.faces[index]
 
     def __hash__(self) -> int:
-        return hash(str(self))
+        return hash(self.state)
 
     @property
     def isSolved(self) -> bool:
-        return str(self) == SOLVED_MASK
+        return self.state == SOLVED_MASK
 
     @property
     def optimisedMoves(self) -> list[str]:
         return optimiseMoves(self.movesMade)
 
+    @property
+    def faces(self) -> list[list[list[str]]]:
+        """The cube's state decoded into a 6x3x3 nested list of squares.
+
+        This is a read-only view rebuilt from ``state`` on each access; mutate the cube
+        through its rotation methods, not by assigning to the returned list.
+        """
+        s = self.state
+        return [[[s[face * 9 + row * 3 + col] for col in range(3)] for row in range(3)] for face in range(6)]
+
     def initialiseFaces(self, faceStr: str = None) -> None:
-        """Initialises the faces of the cube from a string representation.
+        """Initialises the cube's state from a string representation.
 
         Args:
             faceStr (str): A string of length 54 representing the cube's faces.
         """
         if faceStr:
-            self.faces = []
-            counter = 0
-            for _ in range(0, 6):
-                face = []
-                for ii in range(3):
-                    face.append([])
-                    for _ in range(3):
-                        face[ii].append(faceStr[counter])
-                        counter += 1
-
-                self.faces.append(face)
+            self.state = faceStr
 
     def calculateFaces(self, front: str, top: str) -> None:
         """Calculates faces relative to a chosen front face and a chosen top face.
@@ -114,8 +112,9 @@ class Cube:
             list[str]: A list of colours in the order required for plotting.
         """
         outputList = []
+        faces = self.faces
         for face in [(0, -1, 1), (5, 1, 1), (2, 1, 1), (4, 1, -1), (1, 1, -1), (3, 1, 1)]:
-            for row in self.faces[face[0]][:: face[1]]:
+            for row in faces[face[0]][:: face[1]]:
                 for square in row[:: face[2]]:
                     outputList.append(PLOTTING_COLOUR_MAP[square])
         return outputList
@@ -201,21 +200,7 @@ class Cube:
         Args:
             direction (bool, optional): The direction to rotate the face. Defaults to CLOCKWISE.
         """
-        self.__rotateFace(0, direction)
-        if direction == CLOCKWISE:
-            self.faces[4][0], self.faces[1][0], self.faces[2][0], self.faces[3][0] = (
-                self.faces[1][0],
-                self.faces[2][0],
-                self.faces[3][0],
-                self.faces[4][0],
-            )
-        else:
-            self.faces[1][0], self.faces[2][0], self.faces[3][0], self.faces[4][0] = (
-                self.faces[4][0],
-                self.faces[1][0],
-                self.faces[2][0],
-                self.faces[3][0],
-            )
+        self.__applyMove("U", direction)
 
     def rotateD(self, direction: bool = CLOCKWISE) -> None:
         """Performs a rotation of the down face.
@@ -223,21 +208,7 @@ class Cube:
         Args:
             direction (bool, optional): The direction to rotate the face. Defaults to CLOCKWISE.
         """
-        self.__rotateFace(5, direction)
-        if direction == CLOCKWISE:
-            self.faces[1][2], self.faces[2][2], self.faces[3][2], self.faces[4][2] = (
-                self.faces[4][2],
-                self.faces[1][2],
-                self.faces[2][2],
-                self.faces[3][2],
-            )
-        else:
-            self.faces[4][2], self.faces[1][2], self.faces[2][2], self.faces[3][2] = (
-                self.faces[1][2],
-                self.faces[2][2],
-                self.faces[3][2],
-                self.faces[4][2],
-            )
+        self.__applyMove("D", direction)
 
     def rotateF(self, direction: bool = CLOCKWISE) -> None:
         """Performs a rotation of the front face.
@@ -245,34 +216,7 @@ class Cube:
         Args:
             direction (bool, optional): The direction to rotate the face. Defaults to CLOCKWISE.
         """
-        self.__rotateFace(2, direction)
-        if direction == CLOCKWISE:
-            for i in range(3):
-                (
-                    self.faces[1][2 - i][2],
-                    self.faces[0][2][i],
-                    self.faces[3][i][0],
-                    self.faces[5][0][2 - i],
-                ) = (
-                    self.faces[5][0][2 - i],
-                    self.faces[1][2 - i][2],
-                    self.faces[0][2][i],
-                    self.faces[3][i][0],
-                )
-
-        else:
-            for i in range(3):
-                (
-                    self.faces[1][2 - i][2],
-                    self.faces[0][2][i],
-                    self.faces[3][i][0],
-                    self.faces[5][0][2 - i],
-                ) = (
-                    self.faces[0][2][i],
-                    self.faces[3][i][0],
-                    self.faces[5][0][2 - i],
-                    self.faces[1][2 - i][2],
-                )
+        self.__applyMove("F", direction)
 
     def rotateB(self, direction: bool = CLOCKWISE) -> None:
         """Performs a rotation of the back face.
@@ -280,34 +224,7 @@ class Cube:
         Args:
             direction (bool, optional): The direction to rotate the face. Defaults to CLOCKWISE.
         """
-        self.__rotateFace(4, direction)
-        if direction == CLOCKWISE:
-            for i in range(3):
-                (
-                    self.faces[1][2 - i][0],
-                    self.faces[0][0][i],
-                    self.faces[3][i][2],
-                    self.faces[5][2][2 - i],
-                ) = (
-                    self.faces[0][0][i],
-                    self.faces[3][i][2],
-                    self.faces[5][2][2 - i],
-                    self.faces[1][2 - i][0],
-                )
-
-        else:
-            for i in range(3):
-                (
-                    self.faces[1][2 - i][0],
-                    self.faces[0][0][i],
-                    self.faces[3][i][2],
-                    self.faces[5][2][2 - i],
-                ) = (
-                    self.faces[5][2][2 - i],
-                    self.faces[1][2 - i][0],
-                    self.faces[0][0][i],
-                    self.faces[3][i][2],
-                )
+        self.__applyMove("B", direction)
 
     def rotateR(self, direction: bool = CLOCKWISE) -> None:
         """Performs a rotation of the right face.
@@ -315,34 +232,7 @@ class Cube:
         Args:
             direction (bool, optional): The direction to rotate the face. Defaults to CLOCKWISE.
         """
-        self.__rotateFace(3, direction)
-        if direction == CLOCKWISE:
-            for i in range(3):
-                (
-                    self.faces[2][2 - i][2],
-                    self.faces[0][2 - i][2],
-                    self.faces[4][i][0],
-                    self.faces[5][2 - i][2],
-                ) = (
-                    self.faces[5][2 - i][2],
-                    self.faces[2][2 - i][2],
-                    self.faces[0][2 - i][2],
-                    self.faces[4][i][0],
-                )
-
-        else:
-            for i in range(3):
-                (
-                    self.faces[2][2 - i][2],
-                    self.faces[0][2 - i][2],
-                    self.faces[4][i][0],
-                    self.faces[5][2 - i][2],
-                ) = (
-                    self.faces[0][2 - i][2],
-                    self.faces[4][i][0],
-                    self.faces[5][2 - i][2],
-                    self.faces[2][2 - i][2],
-                )
+        self.__applyMove("R", direction)
 
     def rotateL(self, direction: bool = CLOCKWISE) -> None:
         """Performs a rotation of the left face.
@@ -350,61 +240,16 @@ class Cube:
         Args:
             direction (bool, optional): The direction to rotate the face. Defaults to CLOCKWISE.
         """
-        self.__rotateFace(1, direction)
-        if direction == CLOCKWISE:
-            for i in range(3):
-                (
-                    self.faces[2][2 - i][0],
-                    self.faces[0][2 - i][0],
-                    self.faces[4][i][2],
-                    self.faces[5][2 - i][0],
-                ) = (
-                    self.faces[0][2 - i][0],
-                    self.faces[4][i][2],
-                    self.faces[5][2 - i][0],
-                    self.faces[2][2 - i][0],
-                )
+        self.__applyMove("L", direction)
 
-        else:
-            for i in range(3):
-                (
-                    self.faces[2][2 - i][0],
-                    self.faces[0][2 - i][0],
-                    self.faces[4][i][2],
-                    self.faces[5][2 - i][0],
-                ) = (
-                    self.faces[5][2 - i][0],
-                    self.faces[2][2 - i][0],
-                    self.faces[0][2 - i][0],
-                    self.faces[4][i][2],
-                )
-
-    def __rotateFace(self, face: int = 2, direction: bool = CLOCKWISE) -> None:
-        """Rotates the specified face of the cube 90 degrees clockwise or anti-clockwise.
+    def __applyMove(self, face: str, direction: bool = CLOCKWISE) -> None:
+        """Applies a single quarter turn to the cube's state string.
 
         Args:
-            face (int, optional): The face to rotate. Defaults to 2 (the front face).
-            direction (bool, optional): The direction to rotate the face. Defaults to CLOCKWISE.
+            face (str): The face to turn, in move notation (one of U, D, F, B, L, R).
+            direction (bool, optional): The direction to turn the face. Defaults to CLOCKWISE.
         """
-        squares = []
-
-        if direction == CLOCKWISE:
-            order = CLOCKWISE_TURNS
-        else:
-            order = ANTI_CLOCKWISE_TURNS
-
-        for square in SPIRAL_ORDER:
-            column = square % 3
-            row = square // 3
-
-            squares.append(self.faces[face][row][column])
-
-        for squareIndex in range(len(order)):
-            square = order[squareIndex]
-            column = square % 3
-            row = square // 3
-
-            self.faces[face][row][column] = squares[(squareIndex)]
+        self.state = rotate(self.state, face if direction == CLOCKWISE else face + "'")
 
     def executeSequence(self, sequence: str, useColours: bool = False) -> None:
         """Executes a sequence of moves on the Rubik's Cube.
@@ -751,13 +596,16 @@ class Cube:
     def alignYellowEdges(self) -> None:
         """Aligns the yellow edges so the corners can be inserted."""
         while not self.checkMask(YELLOW_EDGES_SOLVED_MASK):
+            # compare each side's centre (face*9 + 4) with its bottom-row middle (face*9 + 7)
+            # straight from the state string instead of decoding the whole cube
+            s = self.state
             numMatches = 0
             notMatchingFaces = []
             for face in range(1, 5):
-                if self.faces[face][1][1] == self.faces[face][2][1]:
+                if s[face * 9 + 4] == s[face * 9 + 7]:
                     numMatches += 1
                 else:
-                    notMatchingFaces.append(self.faces[face][1][1])
+                    notMatchingFaces.append(s[face * 9 + 4])
 
             if numMatches == 4:
                 return
@@ -782,29 +630,32 @@ class Cube:
         Returns:
             list[str]: A list of face colours that have valid corners.
         """
+        # read the twelve corner squares straight out of the state string (index = face*9 + row*3 + col)
+        # rather than decoding the whole cube into a nested list
+        s = self.state
         validCorners = []
         if (
-            self.faces[2][2][2] in {"R", "Y", "B"}
-            and self.faces[3][2][0] in {"R", "Y", "B"}
-            and self.faces[5][0][2] in {"R", "Y", "B"}
+            s[26] in {"R", "Y", "B"}  # faces[2][2][2]
+            and s[33] in {"R", "Y", "B"}  # faces[3][2][0]
+            and s[47] in {"R", "Y", "B"}  # faces[5][0][2]
         ):
             validCorners.append("B")
         if (
-            self.faces[3][2][2] in {"O", "Y", "B"}
-            and self.faces[4][2][0] in {"O", "Y", "B"}
-            and self.faces[5][2][2] in {"O", "Y", "B"}
+            s[35] in {"O", "Y", "B"}  # faces[3][2][2]
+            and s[42] in {"O", "Y", "B"}  # faces[4][2][0]
+            and s[53] in {"O", "Y", "B"}  # faces[5][2][2]
         ):
             validCorners.append("O")
         if (
-            self.faces[4][2][2] in {"O", "Y", "G"}
-            and self.faces[1][2][0] in {"O", "Y", "G"}
-            and self.faces[5][2][0] in {"O", "Y", "G"}
+            s[44] in {"O", "Y", "G"}  # faces[4][2][2]
+            and s[15] in {"O", "Y", "G"}  # faces[1][2][0]
+            and s[51] in {"O", "Y", "G"}  # faces[5][2][0]
         ):
             validCorners.append("G")
         if (
-            self.faces[1][2][2] in {"R", "Y", "G"}
-            and self.faces[2][2][0] in {"R", "Y", "G"}
-            and self.faces[5][0][0] in {"R", "Y", "G"}
+            s[17] in {"R", "Y", "G"}  # faces[1][2][2]
+            and s[24] in {"R", "Y", "G"}  # faces[2][2][0]
+            and s[45] in {"R", "Y", "G"}  # faces[5][0][0]
         ):
             validCorners.append("R")
 
@@ -830,8 +681,9 @@ class Cube:
     def final(self) -> None:
         """Finalizes the solution by orienting the last layer."""
         while not self.checkMask(SOLVED_MASK):
-            if self.faces[5][0][0] != "Y":
-                while self.faces[5][0][0] != "Y":
+            # face 5 (bottom), row 0, column 0 is state index 45
+            if self.state[45] != "Y":
+                while self.state[45] != "Y":
                     self.executeSequence(FINAL_STEP_ALGORITHM)
             self.executeSequence("D")
 
