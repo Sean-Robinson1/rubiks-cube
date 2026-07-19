@@ -108,14 +108,13 @@ def combineMasks(mask1: str, mask2: str) -> str:
     Returns:
         str: The combined mask.
     """
-    out = ""
-    for i in range(len(mask1)):
-        if mask1[i] == ".":
-            out += mask2[i]
-        else:
-            out += mask1[i]
+    # start from mask2, then overlay only mask1's specified (non-dot) squares - typically a
+    # handful - instead of rebuilding all 54 characters one concatenation at a time
+    out = list(mask2)
+    for i, c in _sparseMask(mask1):
+        out[i] = c
 
-    return out
+    return "".join(out)
 
 
 def optimiseMoves(moves: list[str]) -> list[str]:
