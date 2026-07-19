@@ -416,10 +416,11 @@ class Cube:
     def solveCross(self) -> None:
         """Solves the white cross on the top of the cube."""
 
-        # the different masks needed to solve the white cross
-        solvedMasks = copy.deepcopy(WHITE_CROSS_SOLVED_MASKS)
-        recurseMasks = copy.deepcopy(WHITE_CROSS_RECURSION_MASKS)
-        insertionMasks = copy.deepcopy(WHITE_CROSS_INSERTION_MASKS)
+        # the different masks needed to solve the white cross. The masks are immutable tuples/strings
+        # and only the containers are mutated, so a shallow copy is enough (and far cheaper than deepcopy)
+        solvedMasks = set(WHITE_CROSS_SOLVED_MASKS)
+        recurseMasks = set(WHITE_CROSS_RECURSION_MASKS)
+        insertionMasks = set(WHITE_CROSS_INSERTION_MASKS)
 
         numCorrect = 0
         removed = "." * 54
@@ -472,8 +473,8 @@ class Cube:
     def solveF2LCorners(self) -> None:
         """Solves all white corner pieces as part of the F2L (First 2 Layers) solution."""
 
-        insertionMasks = copy.deepcopy(F2L_CORNERS_INSERTION_MASKS)
-        solvedMasks = copy.deepcopy(F2L_CORNERS_SOLVED_MASKS)
+        insertionMasks = set(F2L_CORNERS_INSERTION_MASKS)
+        solvedMasks = set(F2L_CORNERS_SOLVED_MASKS)
 
         # searches until all 4 corners are correctly placed
         insertedCorners = 0
@@ -530,8 +531,8 @@ class Cube:
     def solveF2LMiddlePieces(self) -> None:
         """Inserts the middle layer edge pieces correctly as part of the F2L (First 2 Layers) solution."""
 
-        solvedMasks = copy.deepcopy(F2L_MIDDLE_SOLVED_MASKS)
-        insertionMasks = copy.deepcopy(F2L_MIDDLE_INSERTION_MASKS)
+        solvedMasks = set(F2L_MIDDLE_SOLVED_MASKS)
+        insertionMasks = set(F2L_MIDDLE_INSERTION_MASKS)
 
         correctPieces = 0
         while correctPieces != 4:
