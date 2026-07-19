@@ -488,7 +488,7 @@ class Cube:
         Returns:
             str: The colour of the opposite face.
         """
-        return OPPOSITE_FACE_MAPPING.get(colour, None)
+        return OPPOSITE_FACE_MAPPING.get(colour)
 
     def getLeftFace(self, colour: str) -> str:
         """Returns the left face relative to the given face colour.
@@ -501,7 +501,7 @@ class Cube:
         Returns:
             str: The colour of the left face.
         """
-        return LEFT_FACE_MAPPING.get(colour, None)
+        return LEFT_FACE_MAPPING.get(colour)
 
     def getRightFace(self, colour: str) -> str:
         """Returns the right face relative to the given face colour.
@@ -514,7 +514,7 @@ class Cube:
         Returns:
             str: The colour of the right face.
         """
-        return RIGHT_FACE_MAPPING.get(colour, None)
+        return RIGHT_FACE_MAPPING.get(colour)
 
     def getMoveRelative(self, move: str) -> str:
         """Returns the move relative to the current front and top faces.
@@ -860,7 +860,7 @@ class Cube:
             list[str] | None: A list of moves to reach one of the masks, or None if no solution was found.
         """
         if not any(map(lambda x: self.checkMask(x), masks)):
-            result = self.__pathfind(masks, depth, str(self))
+            result = self.__pathfind(masks, depth, str(self), {})
             if result is not None:
                 return result
             else:
@@ -868,13 +868,15 @@ class Cube:
 
         return []
 
-    def __pathfind(self, masks: list[str], depth: int, state: str) -> list[str] | None:
+    def __pathfind(self, masks: list[str], depth: int, state: str, visited: dict[str, int]) -> list[str] | None:
         """Performs DFS until a solution is found or the maximum depth is reached. Has some optimisations.
 
         Args:
             masks (list[str]): A list of masks to search for.
             depth (int): The maximum depth to search.
             state (str): The current state of the cube as a string.
+            visited (dict[str, int]): Transposition table mapping a state to the greatest
+                                      remaining depth it has already been explored with.
 
         Returns:
             list[str] | None: A list of moves to reach one of the masks, or None if no solution was found.
@@ -886,9 +888,15 @@ class Cube:
         if depth == 0:
             return None
 
+        # transposition table: if this state was already explored with at least as
+        # much remaining depth, that subtree was fully searched without success, so skip it
+        if visited.get(state, -1) >= depth:
+            return None
+        visited[state] = depth
+
         for move in range(12):
             newstate = rotate(state, POSSIBLE_ROTATIONS[move])
-            result = self.__pathfind(masks, depth - 1, newstate)
+            result = self.__pathfind(masks, depth - 1, newstate, visited)
 
             if result is not None:
                 return [POSSIBLE_ROTATIONS[move]] + result
