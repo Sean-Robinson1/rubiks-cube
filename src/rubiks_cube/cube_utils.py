@@ -14,11 +14,8 @@ def rotate(mask: str, rotation: str) -> str:
     Returns:
         str: The rotated mask.
     """
-    output = ""
     mapping = STRING_ROTATION_MAPPINGS[rotation]
-    for i in range(54):
-        output += mask[mapping[i]]
-    return output
+    return "".join([mask[j] for j in mapping])
 
 
 # cache of the non-dot positions of each mask, so a mask is only scanned once
