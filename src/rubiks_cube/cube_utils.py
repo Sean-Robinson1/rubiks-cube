@@ -57,6 +57,40 @@ def checkMask(mask: str, state: str) -> bool:
     return True
 
 
+def sparsifyMasks(masks) -> list[tuple[tuple[int, str], ...]]:
+    """Decomposes a collection of masks into their non-dot (index, character) pairs.
+
+    Precomputing this once lets a repeated search test many states against the same masks
+    without re-looking-up each mask's sparse form on every check.
+
+    Args:
+        masks: An iterable of mask strings.
+
+    Returns:
+        list[tuple[tuple[int, str], ...]]: The sparse form of each mask.
+    """
+    return [_sparseMask(mask) for mask in masks]
+
+
+def matchesAnySparse(sparseMasks: list[tuple[tuple[int, str], ...]], state: str) -> bool:
+    """Checks whether a state matches any of the given pre-decomposed masks.
+
+    Args:
+        sparseMasks (list): Masks already decomposed by ``sparsifyMasks``.
+        state (str): The state to check against.
+
+    Returns:
+        bool: True if the state matches at least one mask, False otherwise.
+    """
+    for sparse in sparseMasks:
+        for i, c in sparse:
+            if state[i] != c:
+                break
+        else:
+            return True
+    return False
+
+
 def combineMasks(mask1: str, mask2: str) -> str:
     """Combines two masks. If they both specify a certain square differently,
     priority will be given to mask1, and the output mask will take the value

@@ -4,7 +4,7 @@ import random
 import time
 
 from .constants import *
-from .cube_utils import checkMask, combineMasks, optimiseMoves, printAnalysis, rotate
+from .cube_utils import checkMask, combineMasks, matchesAnySparse, optimiseMoves, printAnalysis, rotate, sparsifyMasks
 
 
 class Cube:
@@ -712,7 +712,9 @@ class Cube:
             list[str] | None: A list of moves to reach one of the masks, or None if no solution was found.
         """
         if not any(map(lambda x: self.checkMask(x), masks)):
-            result = self.__pathfind(masks, depth, str(self), {})
+            # decompose the masks into their non-dot squares once, so the recursive search
+            # tests every state against them without re-looking-up each mask's sparse form
+            result = self.__pathfind(sparsifyMasks(masks), depth, str(self), {})
             if result is not None:
                 return result
             else:
@@ -720,11 +722,13 @@ class Cube:
 
         return []
 
-    def __pathfind(self, masks: list[str], depth: int, state: str, visited: dict[str, int]) -> list[str] | None:
+    def __pathfind(
+        self, sparseMasks: list[tuple[tuple[int, str], ...]], depth: int, state: str, visited: dict[str, int]
+    ) -> list[str] | None:
         """Performs DFS until a solution is found or the maximum depth is reached. Has some optimisations.
 
         Args:
-            masks (list[str]): A list of masks to search for.
+            sparseMasks (list): The target masks, pre-decomposed by ``sparsifyMasks``.
             depth (int): The maximum depth to search.
             state (str): The current state of the cube as a string.
             visited (dict[str, int]): Transposition table mapping a state to the greatest
@@ -733,9 +737,8 @@ class Cube:
         Returns:
             list[str] | None: A list of moves to reach one of the masks, or None if no solution was found.
         """
-        for mask in masks:
-            if checkMask(mask, state):
-                return []
+        if matchesAnySparse(sparseMasks, state):
+            return []
 
         if depth == 0:
             return None
@@ -748,7 +751,7 @@ class Cube:
 
         for move in range(12):
             newstate = rotate(state, POSSIBLE_ROTATIONS[move])
-            result = self.__pathfind(masks, depth - 1, newstate, visited)
+            result = self.__pathfind(sparseMasks, depth - 1, newstate, visited)
 
             if result is not None:
                 return [POSSIBLE_ROTATIONS[move]] + result
