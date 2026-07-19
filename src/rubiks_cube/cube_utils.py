@@ -21,6 +21,29 @@ def rotate(mask: str, rotation: str) -> str:
     return output
 
 
+# cache of the non-dot positions of each mask, so a mask is only scanned once
+# and repeated checks (the vast majority) iterate only the squares that matter
+_sparseMaskCache: dict[str, tuple[tuple[int, str], ...]] = {}
+
+
+def _sparseMask(mask: str) -> tuple[tuple[int, str], ...]:
+    """Returns the (index, expected character) pairs for a mask's non-dot squares.
+
+    The result is cached, as the same masks are checked many times during solving.
+
+    Args:
+        mask (str): The mask to decompose.
+
+    Returns:
+        tuple[tuple[int, str], ...]: The non-dot (index, character) pairs.
+    """
+    sparse = _sparseMaskCache.get(mask)
+    if sparse is None:
+        sparse = tuple((i, c) for i, c in enumerate(mask) if c != ".")
+        _sparseMaskCache[mask] = sparse
+    return sparse
+
+
 def checkMask(mask: str, state: str) -> bool:
     """Checks if a mask and a state match.
 
@@ -31,8 +54,8 @@ def checkMask(mask: str, state: str) -> bool:
     Returns:
         bool: True if the mask matches the state, False otherwise.
     """
-    for i in range(len(mask)):
-        if mask[i] != "." and mask[i] != state[i]:
+    for i, c in _sparseMask(mask):
+        if state[i] != c:
             return False
     return True
 
