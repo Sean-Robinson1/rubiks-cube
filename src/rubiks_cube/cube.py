@@ -714,8 +714,11 @@ class Cube:
         """
         if not any(map(lambda x: self.checkMask(x), masks)):
             # decompose the masks into their non-dot squares once, so the recursive search
-            # tests every state against them without re-looking-up each mask's sparse form
-            result = self.__pathfind(sparsifyMasks(masks), depth, str(self), {})
+            # tests every state against them without re-looking-up each mask's sparse form.
+            # the transposition table only pays off for the deep cross search - at shallow depths
+            # its ~13 stored states never collide, so skip it (None) to avoid pure overhead
+            visited = None if depth <= 2 else {}
+            result = self.__pathfind(sparsifyMasks(masks), depth, str(self), visited)
             if result is not None:
                 return result
             else:
@@ -724,7 +727,7 @@ class Cube:
         return []
 
     def __pathfind(
-        self, sparseMasks: list[tuple[tuple[int, str], ...]], depth: int, state: str, visited: dict[str, int]
+        self, sparseMasks: list[tuple[tuple[int, str], ...]], depth: int, state: str, visited: dict[str, int] | None
     ) -> list[str] | None:
         """Performs DFS until a solution is found or the maximum depth is reached. Has some optimisations.
 
@@ -732,8 +735,9 @@ class Cube:
             sparseMasks (list): The target masks, pre-decomposed by ``sparsifyMasks``.
             depth (int): The maximum depth to search.
             state (str): The current state of the cube as a string.
-            visited (dict[str, int]): Transposition table mapping a state to the greatest
-                                      remaining depth it has already been explored with.
+            visited (dict[str, int] | None): Transposition table mapping a state to the greatest
+                                             remaining depth it has already been explored with, or
+                                             None to search without one (used for shallow searches).
 
         Returns:
             list[str] | None: A list of moves to reach one of the masks, or None if no solution was found.
@@ -746,9 +750,10 @@ class Cube:
 
         # transposition table: if this state was already explored with at least as
         # much remaining depth, that subtree was fully searched without success, so skip it
-        if visited.get(state, -1) >= depth:
-            return None
-        visited[state] = depth
+        if visited is not None:
+            if visited.get(state, -1) >= depth:
+                return None
+            visited[state] = depth
 
         for move in range(12):
             newstate = rotate(state, POSSIBLE_ROTATIONS[move])
