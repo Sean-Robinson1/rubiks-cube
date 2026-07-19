@@ -1,4 +1,10 @@
+import operator
+
 from .constants import STRING_ROTATION_MAPPINGS
+
+# precompute one itemgetter per rotation: itemgetter(*mapping)(mask) pulls all 54 permuted
+# squares in a single C-level call, which is markedly faster than a Python-level comprehension
+_ROTATION_GETTERS = {rotation: operator.itemgetter(*mapping) for rotation, mapping in STRING_ROTATION_MAPPINGS.items()}
 
 
 # these functions perform operations on the masks not the cube
@@ -14,8 +20,7 @@ def rotate(mask: str, rotation: str) -> str:
     Returns:
         str: The rotated mask.
     """
-    mapping = STRING_ROTATION_MAPPINGS[rotation]
-    return "".join([mask[j] for j in mapping])
+    return "".join(_ROTATION_GETTERS[rotation](mask))
 
 
 # cache of the non-dot positions of each mask, so a mask is only scanned once
