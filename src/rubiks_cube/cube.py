@@ -4,6 +4,7 @@ import random
 import time
 
 from .constants import *
+from .corner_table import CORNER_TABLE, INVERSE_MACROS, NO_MACRO, encodeCorners
 from .cross_table import CROSS_TABLE, NO_MOVE, encodeCross
 from .cube_utils import checkMask, combineMasks, matchesAnySparse, optimiseMoves, printAnalysis, rotate, sparsifyMasks
 
@@ -427,62 +428,16 @@ class Cube:
             move = CROSS_TABLE[encodeCross(self.state)]
 
     def solveF2LCorners(self) -> None:
-        """Solves all white corner pieces as part of the F2L (First 2 Layers) solution."""
+        """Solves the four white F2L corners.
 
-        insertionMasks = set(F2L_CORNERS_INSERTION_MASKS)
-        solvedMasks = set(F2L_CORNERS_SOLVED_MASKS)
-
-        # searches until all 4 corners are correctly placed
-        insertedCorners = 0
-        while insertedCorners != 4:
-            toRemove = []
-            for mask in solvedMasks:
-                if self.checkMask(mask[1]):
-                    toRemove.append(mask)
-                    filtered = filter(lambda x: x[0][0] != mask[0], insertionMasks)
-                    insertionMasks = set(map(lambda a: (a[0], combineMasks(a[1], mask[1])), filtered))
-                    insertedCorners += 1
-
-            for masks in toRemove:
-                solvedMasks.remove(masks)
-
-            if insertedCorners == 4:
-                break
-
-            inserted = False
-            for mask in insertionMasks:
-                if self.checkMask(mask[1]):
-                    self.__insertCorner(mask[0])
-                    inserted = True
-
-            if inserted:
-                continue
-
-            recurseMasks = list(map(lambda x: x[1], insertionMasks))
-            moves = self.__startPathfinding(recurseMasks, 2)
-
-            if moves is None:
-                for face, mask in solvedMasks:
-                    self.__insertCorner(face + "_2")
-                    break
-            else:
-                self.executeSequence("".join(moves))
-
-            for mask in insertionMasks:
-                if self.checkMask(mask[1]):
-                    self.__insertCorner(mask[0])
-
-    def __insertCorner(self, code: str) -> None:
-        """Inserts a corner piece correctly as part of the F2L (First 2 Layers) solution,
-        using the code to determine method of insertion/algorithm.
-
-        Args:
-            code (str): A string in the format "XYn", where X is the first face colour, Y is the second face colour,
-                        and n is the insertion method (1, 2, or 3).
+        Uses a precomputed table that maps every white-corner configuration to a cross-preserving
+        macro stepping one closer to solved, so the corners are placed by a short sequence of O(1)
+        lookups without disturbing the cross.
         """
-        face = code[0]
-        insertionMethod = int(code[2])
-        self.convertSequenceFromFace(face, CORNER_INSERTION_ALGORITHMS[insertionMethod])
+        macro = CORNER_TABLE[encodeCorners(self.state)]
+        while macro != NO_MACRO:
+            self.executeSequence(INVERSE_MACROS[macro])
+            macro = CORNER_TABLE[encodeCorners(self.state)]
 
     def solveF2LMiddlePieces(self) -> None:
         """Inserts the middle layer edge pieces correctly as part of the F2L (First 2 Layers) solution."""
