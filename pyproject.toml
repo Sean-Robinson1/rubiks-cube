@@ -22,3 +22,6 @@ rubiks-cube = "rubiks_cube.main:main"
 [tool.setuptools.packages.find]
 where = ["src"]
 include = ["rubiks_cube*"]
+
+[tool.setuptools.package-data]
+rubiks_cube = ["data/*.bin"]

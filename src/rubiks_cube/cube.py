@@ -4,6 +4,7 @@ import random
 import time
 
 from .constants import *
+from .cross_table import CROSS_TABLE, NO_MOVE, encodeCross
 from .cube_utils import checkMask, combineMasks, matchesAnySparse, optimiseMoves, printAnalysis, rotate, sparsifyMasks
 
 
@@ -49,7 +50,7 @@ class Cube:
     def faces(self) -> list[list[list[str]]]:
         """The cube's state decoded into a 6x3x3 nested list of squares.
 
-        This is a read-only view rebuilt from ``state`` on each access; mutate the cube
+        This is a read-only view rebuilt from state on each access; mutate the cube
         through its rotation methods, not by assigning to the returned list.
         """
         s = self.state
@@ -414,61 +415,16 @@ class Cube:
         self.final()
 
     def solveCross(self) -> None:
-        """Solves the white cross on the top of the cube."""
+        """Solves the white cross on the top of the cube.
 
-        # the different masks needed to solve the white cross. The masks are immutable tuples/strings
-        # and only the containers are mutated, so a shallow copy is enough (and far cheaper than deepcopy)
-        solvedMasks = set(WHITE_CROSS_SOLVED_MASKS)
-        recurseMasks = set(WHITE_CROSS_RECURSION_MASKS)
-        insertionMasks = set(WHITE_CROSS_INSERTION_MASKS)
-
-        numCorrect = 0
-        removed = "." * 54
-        while numCorrect != 4:
-            toRemove = []
-            # checking for any pieces that can be inserted directly
-            for face, mask, pattern in insertionMasks:
-                if self.checkMask(mask):
-                    toRemove.append((face, mask, pattern))
-                    recurseMasks.discard(mask)
-                    self.convertSequenceFromFace(face, pattern)
-
-            for item in toRemove:
-                insertionMasks.remove(item)
-
-            toRemove = []
-            # checking for any pieces that are already correctly placed
-            for face, mask in solvedMasks:
-                if self.checkMask(mask):
-                    toRemove.append((face, mask))
-                    numCorrect += 1
-
-            if numCorrect == 4:
-                break
-
-            # removing redundant masks and updating the others with the found pieces
-
-            for item in toRemove:
-                solvedMasks.remove(item)
-                removed = combineMasks(removed, item[1])
-
-            if len(toRemove) > 0:
-                recurseMasks = set(map(lambda x: combineMasks(x, removed), recurseMasks))
-                insertionMasks = set(map(lambda x: (x[0], combineMasks(x[1], removed), x[2]), insertionMasks))
-
-            recurseMasks = set(filter(lambda x: not self.checkMask(x), recurseMasks))
-
-            # if no pieces were inserted or found, use pathfinding to get a piece into position
-
-            moves = self.__startPathfinding(recurseMasks, 5)
-
-            if moves is None:
-                for face, mask in solvedMasks:
-                    if not self.checkMask(mask):
-                        self.convertSequenceFromFace(face, "FU'RU")
-
-            if moves is not None:
-                self.executeSequence("".join(moves))
+        Uses a precomputed table that maps every white-cross configuration to the next move on an
+        optimal path to the solved cross, so the cross is solved by a short sequence of O(1) lookups
+        rather than a search.
+        """
+        move = CROSS_TABLE[encodeCross(self.state)]
+        while move != NO_MOVE:
+            self.executeSequence(POSSIBLE_ROTATIONS[move])
+            move = CROSS_TABLE[encodeCross(self.state)]
 
     def solveF2LCorners(self) -> None:
         """Solves all white corner pieces as part of the F2L (First 2 Layers) solution."""
@@ -732,7 +688,7 @@ class Cube:
         """Performs DFS until a solution is found or the maximum depth is reached. Has some optimisations.
 
         Args:
-            sparseMasks (list): The target masks, pre-decomposed by ``sparsifyMasks``.
+            sparseMasks (list): The target masks, pre-decomposed by sparsifyMasks.
             depth (int): The maximum depth to search.
             state (str): The current state of the cube as a string.
             visited (dict[str, int] | None): Transposition table mapping a state to the greatest

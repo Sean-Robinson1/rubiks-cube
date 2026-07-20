@@ -81,7 +81,7 @@ def matchesAnySparse(sparseMasks: list[tuple[tuple[int, str], ...]], state: str)
     """Checks whether a state matches any of the given pre-decomposed masks.
 
     Args:
-        sparseMasks (list): Masks already decomposed by ``sparsifyMasks``.
+        sparseMasks (list): Masks already decomposed by sparsifyMasks.
         state (str): The state to check against.
 
     Returns:
