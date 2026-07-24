@@ -6,7 +6,11 @@ import time
 from .constants import *
 from .corner_table import CORNER_TABLE, INVERSE_MACROS, NO_MACRO, encodeCorners
 from .cross_table import CROSS_TABLE, NO_MOVE, encodeCross
-from .cube_utils import checkMask, combineMasks, matchesAnySparse, optimiseMoves, printAnalysis, rotate, sparsifyMasks
+from .middle_table import INVERSE_MACROS as MIDDLE_INVERSE_MACROS
+from .middle_table import MIDDLE_TABLE
+from .middle_table import NO_MACRO as NO_MIDDLE_MACRO
+from .middle_table import encodeMiddles
+from .cube_utils import checkMask, optimiseMoves, printAnalysis, rotate
 
 
 class Cube:
@@ -440,48 +444,16 @@ class Cube:
             macro = CORNER_TABLE[encodeCorners(self.state)]
 
     def solveF2LMiddlePieces(self) -> None:
-        """Inserts the middle layer edge pieces correctly as part of the F2L (First 2 Layers) solution."""
+        """Inserts the four middle-layer edges to complete the F2L.
 
-        solvedMasks = set(F2L_MIDDLE_SOLVED_MASKS)
-        insertionMasks = set(F2L_MIDDLE_INSERTION_MASKS)
-
-        correctPieces = 0
-        while correctPieces != 4:
-            toRemove = []
-            for mask in solvedMasks:
-                if self.checkMask(mask[1]):
-                    toRemove.append(mask)
-                    filtered = filter(lambda x: sorted(x[0]) != sorted(mask[0]), insertionMasks)
-                    insertionMasks = list(map(lambda a: (a[0], combineMasks(a[1], mask[1])), filtered))
-                    correctPieces += 1
-
-            for masks in toRemove:
-                solvedMasks.remove(masks)
-
-            if correctPieces == 4:
-                break
-
-            inserted = False
-            for mask in insertionMasks:
-                if self.checkMask(mask[1]):
-                    self.__insertPiece(mask[0])
-                    inserted = True
-
-            if inserted:
-                continue
-
-            recurseMasks = list(map(lambda x: x[1], insertionMasks))
-            moves = self.__startPathfinding(recurseMasks, 2)
-
-            if moves is None:
-                for face, mask in solvedMasks:
-                    self.__insertPiece(face)
-            else:
-                self.executeSequence("".join(moves))
-
-            for mask in insertionMasks:
-                if self.checkMask(mask[1]):
-                    self.__insertPiece(mask[0])
+        Uses a precomputed table that maps every middle-edge configuration to a macro that preserves
+        the cross and corners while stepping one closer to solved, so the middle layer is finished by
+        a sequence of O(1) lookups.
+        """
+        macro = MIDDLE_TABLE[encodeMiddles(self.state)]
+        while macro != NO_MIDDLE_MACRO:
+            self.executeSequence(MIDDLE_INVERSE_MACROS[macro])
+            macro = MIDDLE_TABLE[encodeMiddles(self.state)]
 
     def solveYellowCross(self) -> None:
         """Solves the yellow cross."""
@@ -598,82 +570,6 @@ class Cube:
                 while self.state[45] != "Y":
                     self.executeSequence(FINAL_STEP_ALGORITHM)
             self.executeSequence("D")
-
-    def __insertPiece(self, code: str) -> None:
-        """Correctly inserts a piece into the middle layer.
-
-        Args:
-            code (str): A string in the format "XY", where X is the first face colour and Y is the second face colour.
-        """
-        face = code[0]
-        otherFace = code[1]
-
-        if otherFace == self.getLeftFace(face):
-            self.convertSequenceFromFace(face, LEFT_FACE_INSERTION_ALGORITHM)
-        else:
-            self.convertSequenceFromFace(face, RIGHT_FACE_INSERTION_ALGORITHM)
-
-    def __startPathfinding(self, masks: list[str], depth: int = 6) -> list[str] | None:
-        """Calls a function to perform DFS until a solution is found or the maximum depth is reached.
-
-        Args:
-            masks (list[str]): A list of masks to search for.
-            depth (int, optional): The maximum depth to search. Defaults to 6.
-
-        Returns:
-            list[str] | None: A list of moves to reach one of the masks, or None if no solution was found.
-        """
-        if not any(map(lambda x: self.checkMask(x), masks)):
-            # decompose the masks into their non-dot squares once, so the recursive search
-            # tests every state against them without re-looking-up each mask's sparse form.
-            # the transposition table only pays off for the deep cross search - at shallow depths
-            # its ~13 stored states never collide, so skip it (None) to avoid pure overhead
-            visited = None if depth <= 2 else {}
-            result = self.__pathfind(sparsifyMasks(masks), depth, str(self), visited)
-            if result is not None:
-                return result
-            else:
-                return None
-
-        return []
-
-    def __pathfind(
-        self, sparseMasks: list[tuple[tuple[int, str], ...]], depth: int, state: str, visited: dict[str, int] | None
-    ) -> list[str] | None:
-        """Performs DFS until a solution is found or the maximum depth is reached. Has some optimisations.
-
-        Args:
-            sparseMasks (list): The target masks, pre-decomposed by sparsifyMasks.
-            depth (int): The maximum depth to search.
-            state (str): The current state of the cube as a string.
-            visited (dict[str, int] | None): Transposition table mapping a state to the greatest
-                                             remaining depth it has already been explored with, or
-                                             None to search without one (used for shallow searches).
-
-        Returns:
-            list[str] | None: A list of moves to reach one of the masks, or None if no solution was found.
-        """
-        if matchesAnySparse(sparseMasks, state):
-            return []
-
-        if depth == 0:
-            return None
-
-        # transposition table: if this state was already explored with at least as
-        # much remaining depth, that subtree was fully searched without success, so skip it
-        if visited is not None:
-            if visited.get(state, -1) >= depth:
-                return None
-            visited[state] = depth
-
-        for move in range(12):
-            newstate = rotate(state, POSSIBLE_ROTATIONS[move])
-            result = self.__pathfind(sparseMasks, depth - 1, newstate, visited)
-
-            if result is not None:
-                return [POSSIBLE_ROTATIONS[move]] + result
-
-        return None
 
     def showMask(self, mask: str) -> None:
         """Takes a mask and displays it in the terminal in a clear and easy to read way.
