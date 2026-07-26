@@ -138,6 +138,41 @@ class TestCubeNonSolver(unittest.TestCase):
         cube.solve()
         self.assertTrue(cube.isSolved)
 
+    def test_moveDirectionRecorded(self):
+        # regression: anticlockwise moves must be recorded with direction ("Ri"), not as bare
+        # clockwise letters - otherwise the reported solution is not applicable
+        cube = Cube()
+
+        cube.movesMade = []
+        cube.executeSequence("R")
+        self.assertEqual(cube.movesMade, ["R"])
+
+        cube.movesMade = []
+        cube.executeSequence("R'")
+        self.assertEqual(cube.movesMade, ["Ri"])
+
+        cube.movesMade = []
+        cube.executeSequence("R U' F")
+        self.assertEqual(cube.movesMade, ["R", "Ui", "F"])
+
+    def test_reportedSolutionSolves(self):
+        # regression: the moves the solver reports must actually solve the cube when replayed on the
+        # original scramble - both the optimised (displayed) solution and the raw move list
+        cube = Cube()
+        for _ in range(50):
+            cube.randomise()
+            scramble = str(cube)
+            cube.solve()
+            self.assertTrue(cube.isSolved)
+
+            replay = Cube(scramble)
+            replay.executeSequence(" ".join(cube.optimisedMoves))
+            self.assertTrue(replay.isSolved)
+
+            replayRaw = Cube(scramble)
+            replayRaw.executeSequence(" ".join(cube.movesMade))
+            self.assertTrue(replayRaw.isSolved)
+
 
 if __name__ == "__main__":
     unittest.main()

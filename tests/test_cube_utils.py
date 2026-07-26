@@ -1,7 +1,8 @@
+import random
 import unittest
 
 from rubiks_cube.cube import Cube
-from rubiks_cube.cube_utils import checkMask, combineMasks, rotate
+from rubiks_cube.cube_utils import checkMask, combineMasks, optimiseMoves, rotate
 
 
 class TestCubeNonSolver(unittest.TestCase):
@@ -52,6 +53,33 @@ class TestCubeNonSolver(unittest.TestCase):
             rotated = rotate(original, rotation)
             cube.executeSequence(rotation)
             self.assertEqual(rotated, str(cube))
+
+    def test_optimiseMoves(self):
+        # a move followed by its inverse cancels; four-in-a-row cancels; three collapse to the inverse
+        self.assertEqual(optimiseMoves(["R", "Ri"]), [])
+        self.assertEqual(optimiseMoves(["U", "U", "U", "U"]), [])
+        self.assertEqual(optimiseMoves(["U", "U", "U"]), ["Ui"])
+        self.assertEqual(optimiseMoves(["Fi", "Fi", "Fi"]), ["F"])
+        # unrelated moves, a lone move, and a trailing move after a cancellation are all preserved
+        # (regression for a tail-drop bug that silently discarded the last move)
+        self.assertEqual(optimiseMoves(["R", "U", "F"]), ["R", "U", "F"])
+        self.assertEqual(optimiseMoves(["R"]), ["R"])
+        self.assertEqual(optimiseMoves(["R", "Ri", "U"]), ["U"])
+
+    def test_optimiseMovesPreservesTransformation(self):
+        # optimised sequences must have the same net effect as the original and never be longer
+        random.seed(0)
+        faces = "RLUDFB"
+        for _ in range(1000):
+            sequence = [random.choice(faces) + random.choice(["", "i"]) for _ in range(random.randint(0, 12))]
+            optimised = optimiseMoves(sequence)
+            self.assertLessEqual(len(optimised), len(sequence))
+
+            original = Cube()
+            original.executeSequence("".join(sequence))
+            reduced = Cube()
+            reduced.executeSequence("".join(optimised))
+            self.assertEqual(str(original), str(reduced))
 
 
 if __name__ == "__main__":
