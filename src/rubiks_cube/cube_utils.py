@@ -165,18 +165,14 @@ def optimiseMoves(moves: list[str]) -> list[str]:
     moves = newList.copy()
     newList = []
     i = 0
-    skippedLast = False
     while i < len(moves) - 1:
         if moves[i][0] == moves[i + 1][0] and moves[i] != moves[i + 1]:
             i += 2
-            skippedLast = False
         else:
             newList.append(moves[i])
             i += 1
-            skippedLast = True
-
-    if skippedLast:
-        newList.append(moves[-1])
+    # append whatever tail is left (the last move when it wasn't consumed as part of an inverse pair)
+    newList += moves[i:]
 
     return newList
 
