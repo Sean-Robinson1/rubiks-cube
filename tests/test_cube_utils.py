@@ -1,6 +1,7 @@
 import random
 import unittest
 
+from rubiks_cube.constants import STRING_ROTATION_MAPPINGS
 from rubiks_cube.cube import Cube
 from rubiks_cube.cube_utils import checkMask, combineMasks, optimiseMoves, rotate
 
@@ -53,6 +54,17 @@ class TestCubeNonSolver(unittest.TestCase):
             rotated = rotate(original, rotation)
             cube.executeSequence(rotation)
             self.assertEqual(rotated, str(cube))
+
+    def test_rotationMappingsArePermutations(self):
+        # every rotation mapping must be a genuine permutation of the 54 sticker positions - a typo
+        # (a duplicated or missing index) would silently corrupt the cube, so guard the raw data
+        for name, mapping in STRING_ROTATION_MAPPINGS.items():
+            self.assertEqual(sorted(mapping), list(range(54)), f"{name} is not a permutation of 0..53")
+
+        # and each clockwise mapping must be the exact inverse of its prime
+        solved = str(Cube())
+        for move in ["U", "D", "L", "R", "F", "B"]:
+            self.assertEqual(rotate(rotate(solved, move), move + "'"), solved)
 
     def test_optimiseMoves(self):
         # a move followed by its inverse cancels; four-in-a-row cancels; three collapse to the inverse

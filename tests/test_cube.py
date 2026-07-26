@@ -173,6 +173,55 @@ class TestCubeNonSolver(unittest.TestCase):
             replayRaw.executeSequence(" ".join(cube.movesMade))
             self.assertTrue(replayRaw.isSolved)
 
+    def test_pieceIntegrity(self):
+        # no move may create or destroy stickers: every colour must always appear exactly 9 times
+        cube = Cube()
+        reference = sorted(SOLVED_MASK)
+        for _ in range(20):
+            cube.randomise()
+            self.assertEqual(sorted(str(cube)), reference)
+
+    def test_centresFixed(self):
+        # centre stickers never move under any single face turn
+        centres = [4, 13, 22, 31, 40, 49]
+        for move in ["U", "U'", "D", "D'", "L", "L'", "R", "R'", "F", "F'", "B", "B'"]:
+            cube = Cube()
+            cube.executeSequence(move)
+            state = str(cube)
+            for centre in centres:
+                self.assertEqual(state[centre], SOLVED_MASK[centre], f"centre {centre} moved under {move}")
+
+    def test_moveOrderAndInverse(self):
+        # four quarter-turns of a face are the identity, and a face turn is undone by its inverse
+        for face in ["U", "D", "L", "R", "F", "B"]:
+            cube = Cube()
+            cube.executeSequence(face * 4)
+            self.assertTrue(cube.isSolved, f"{face} x4 should be the identity")
+
+            cube = Cube()
+            cube.executeSequence(face)
+            cube.executeSequence(face + "'")
+            self.assertTrue(cube.isSolved, f"{face} then {face}' should be the identity")
+
+            cube = Cube()
+            cube.executeSequence(face + "'")
+            cube.executeSequence(face)
+            self.assertTrue(cube.isSolved, f"{face}' then {face} should be the identity")
+
+    def test_solveAlreadySolved(self):
+        # solving an already-solved cube is a no-op, and solving is idempotent
+        cube = Cube()
+        cube.solve()
+        self.assertTrue(cube.isSolved)
+        self.assertEqual(cube.movesMade, [])
+
+        cube.randomise()
+        cube.solve()
+        self.assertTrue(cube.isSolved)
+        cube.solve()
+        self.assertTrue(cube.isSolved)
+        self.assertEqual(cube.movesMade, [])
+
 
 if __name__ == "__main__":
     unittest.main()
