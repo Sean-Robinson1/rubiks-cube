@@ -12,6 +12,7 @@ The table (corner_table.bin) is generated offline by buildTable (run this module
 and loaded at import.
 """
 
+import operator
 import os
 from collections import deque
 
@@ -58,6 +59,16 @@ for _slot, _tri in enumerate(CORNERS):
     if "W" in _cols:
         _ORDER[frozenset(c for c in _cols if c != "W")] = len(_ORDER)
 
+# fast-encode helpers: one gather of all 24 corner stickers, plus a per-slot lookup from the three
+# stickers a white corner shows in that slot to its colour bucket and orientation. A slot holding
+# a yellow corner will not match, and is skipped.
+_CORNER_STICKERS = operator.itemgetter(*[p for tri in CORNERS for p in tri])
+_CORNER_PAIR = {}
+for _pair, _bucket in _ORDER.items():
+    _a, _b = tuple(_pair)
+    _CORNER_PAIR[_a + _b] = _bucket
+    _CORNER_PAIR[_b + _a] = _bucket
+
 
 def encodeCorners(state: str) -> int:
     """Encodes the four white corners of a cube state as an integer in [0, 24**4).
@@ -72,16 +83,19 @@ def encodeCorners(state: str) -> int:
     Returns:
         int: The encoded white-corner state.
     """
-    slotOri = {}
-    for slot, tri in enumerate(CORNERS):
-        cols = [state[p] for p in tri]
-        if "W" in cols:
-            slotOri[_ORDER[frozenset(c for c in cols if c != "W")]] = slot * 3 + cols.index("W")
+    cols = _CORNER_STICKERS(state)
+    digits = [0, 0, 0, 0]
+    for slot in range(8):
+        i = slot * 3
+        x, y, z = cols[i], cols[i + 1], cols[i + 2]
+        if x == "W":
+            digits[_CORNER_PAIR[y + z]] = slot * 3
+        elif y == "W":
+            digits[_CORNER_PAIR[x + z]] = slot * 3 + 1
+        elif z == "W":
+            digits[_CORNER_PAIR[x + y]] = slot * 3 + 2
 
-    idx = 0
-    for colour in range(4):
-        idx = idx * 24 + slotOri[colour]
-    return idx
+    return ((digits[0] * 24 + digits[1]) * 24 + digits[2]) * 24 + digits[3]
 
 
 def buildTable() -> bytearray:

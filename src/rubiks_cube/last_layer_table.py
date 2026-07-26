@@ -16,6 +16,8 @@ The table (last_layer_table.bin) is generated offline by buildTable (run this mo
 script) and loaded at import.
 """
 
+import itertools
+import operator
 import os
 from collections import deque
 
@@ -118,6 +120,23 @@ def _rank(perm: list[int]) -> int:
     return rank
 
 
+# fast-encode helpers: gather the 12 corner and 8 edge stickers in one call each, map each slot's
+# stickers to its contribution, and turn the four piece ids into a Lehmer rank through a 256-entry
+# table keyed by the ids packed as base-4 digits (0-255).
+_LL_CORNER_STICKERS = operator.itemgetter(*[p for tri in LL_CORNERS for p in tri])
+_LL_EDGE_STICKERS = operator.itemgetter(*[p for pair in LL_EDGES for p in pair])
+_LL_CORNER_PAIR = {}
+for _pair, _id in _CORNER_ID.items():
+    _x, _y = tuple(_pair)
+    _LL_CORNER_PAIR[_x + _y] = _id
+    _LL_CORNER_PAIR[_y + _x] = _id
+_RANK4 = [0] * 256
+for _perm in itertools.permutations(range(4)):
+    _RANK4[((_perm[0] * 4 + _perm[1]) * 4 + _perm[2]) * 4 + _perm[3]] = _rank(list(_perm))
+_POW3 = (1, 3, 9, 27)
+_POW2 = (1, 2, 4, 8)
+
+
 def encodeLastLayer(state: str) -> int:
     """Encodes the last layer of a cube state as a dense integer in [0, TABLE_SIZE).
 
@@ -131,20 +150,33 @@ def encodeLastLayer(state: str) -> int:
     Returns:
         int: The encoded last-layer state.
     """
-    cornerPerm = [0, 0, 0, 0]
+    corners = _LL_CORNER_STICKERS(state)
+    cornerKey = 0
     cornerOri = 0
-    for slot, tri in enumerate(LL_CORNERS):
-        cols = [state[p] for p in tri]
-        cornerPerm[slot] = _CORNER_ID[frozenset(c for c in cols if c != "Y")]
-        cornerOri += cols.index("Y") * (3 ** slot)
+    for slot in range(4):
+        i = slot * 3
+        x, y, z = corners[i], corners[i + 1], corners[i + 2]
+        if x == "Y":
+            pos, pid = 0, _LL_CORNER_PAIR[y + z]
+        elif y == "Y":
+            pos, pid = 1, _LL_CORNER_PAIR[x + z]
+        else:
+            pos, pid = 2, _LL_CORNER_PAIR[x + y]
+        cornerKey = cornerKey * 4 + pid
+        cornerOri += pos * _POW3[slot]
 
-    edgePerm = [0, 0, 0, 0]
+    edges = _LL_EDGE_STICKERS(state)
+    edgeKey = 0
     edgeOri = 0
-    for slot, (a, b) in enumerate(LL_EDGES):
-        edgePerm[slot] = _EDGE_ID[state[a] if state[b] == "Y" else state[b]]
-        edgeOri += (1 if state[b] == "Y" else 0) * (2 ** slot)
+    for slot in range(4):
+        a, b = edges[slot * 2], edges[slot * 2 + 1]
+        if b == "Y":
+            edgeKey = edgeKey * 4 + _EDGE_ID[a]
+            edgeOri += _POW2[slot]
+        else:
+            edgeKey = edgeKey * 4 + _EDGE_ID[b]
 
-    return ((_rank(cornerPerm) * 81 + cornerOri) * 24 + _rank(edgePerm)) * 16 + edgeOri
+    return ((_RANK4[cornerKey] * 81 + cornerOri) * 24 + _RANK4[edgeKey]) * 16 + edgeOri
 
 
 def buildTable() -> bytearray:
