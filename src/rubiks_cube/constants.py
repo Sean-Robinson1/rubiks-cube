@@ -181,34 +181,7 @@ F2L_MIDDLE_INSERTION_MASKS = {
 LEFT_FACE_INSERTION_ALGORITHM = "DLD'L'D'F'DF"
 RIGHT_FACE_INSERTION_ALGORITHM = "D'R'DRDFD'F'"
 
-## Yellow Cross
+## Last Layer
 
-YELLOW_CROSS_SOLVED_MASK = 'WWWWWWWWWGGGGGG...RRRRRR...BBBBBB...OOOOOO....Y.YYY.Y.'
-YELLOW_CROSS_INSERTION_ALGORITHM = "FLDL'D'F'"
-
-# masks for L and line shapes, with face to perform algorithm from
-YELLOW_L_MASKS = {
-            ('O','WWWWWWWWWGGGGGG...RRRRRR...BBBBBB...OOOOOO....Y.YY....'),
-            ('G','WWWWWWWWWGGGGGG...RRRRRR...BBBBBB...OOOOOO....Y..YY...'),
-            ('B','WWWWWWWWWGGGGGG...RRRRRR...BBBBBB...OOOOOO......YY..Y.'),    
-            ('R','WWWWWWWWWGGGGGG...RRRRRR...BBBBBB...OOOOOO.......YY.Y.')        
-            }
-
-YELLOW_LINE_MASKS = {
-            ('R','WWWWWWWWWGGGGGG...RRRRRR...BBBBBB...OOOOOO......YYY...'),
-            ('B','WWWWWWWWWGGGGGG...RRRRRR...BBBBBB...OOOOOO....Y..Y..Y.'),    
-            }
-
-## Yellow Edges
-
-YELLOW_EDGES_SOLVED_MASK = 'WWWWWWWWWGGGGGG.G.RRRRRR.R.BBBBBB.B.OOOOOO.O..Y.YYY.Y.'
-
-YELLOW_EDGES_INSERTION_ALGORITHM = "LDL'DLDDL'D"
-
-## Yellow Corners
-
-YELLOW_CORNERS_INSERTION_ALGORITHM = "DLD'R'DL'D'R"
-
-## Final Step
-
-FINAL_STEP_ALGORITHM = "L'U'LU"
+# The last layer (yellow face) is solved by last_layer_table.py, a precomputed pattern database, so no
+# per-case masks or algorithms are needed here.

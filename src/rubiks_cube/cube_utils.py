@@ -199,16 +199,12 @@ def printAnalysis(analysis: dict) -> None:
     print(f"Avg Cross Time: {analysis['avg_cross_time']}")
     print(f"Avg Corners Time: {analysis['avg_corners_time']}")
     print(f"Avg Middles Time: {analysis['avg_middles_time']}")
-    print(f"Avg Yellow Cross Time: {analysis['avg_yellow_cross_time']}")
-    print(f"Avg Yellow Edges Time: {analysis['avg_yellow_edges_time']}")
-    print(f"Avg Final Time: {analysis['avg_final_time']}")
+    print(f"Avg Last Layer Time: {analysis['avg_last_layer_time']}")
 
     print("-----------------------------")
 
     print(f"Max Cross Time: {analysis['max_cross_time']}")
     print(f"Max Corners Time: {analysis['max_corners_time']}")
     print(f"Max Middles Time: {analysis['max_middles_time']}")
-    print(f"Max Yellow Cross Time: {analysis['max_yellow_cross_time']}")
-    print(f"Max Yellow Edges Time: {analysis['max_yellow_edges_time']}")
-    print(f"Max Final Time: {analysis['max_final_time']}")
+    print(f"Max Last Layer Time: {analysis['max_last_layer_time']}")
     print("-----------------------------")

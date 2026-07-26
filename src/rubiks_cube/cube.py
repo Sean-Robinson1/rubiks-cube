@@ -10,6 +10,10 @@ from .middle_table import INVERSE_MACROS as MIDDLE_INVERSE_MACROS
 from .middle_table import MIDDLE_TABLE
 from .middle_table import NO_MACRO as NO_MIDDLE_MACRO
 from .middle_table import encodeMiddles
+from .last_layer_table import INVERSE_MACROS as LL_INVERSE_MACROS
+from .last_layer_table import LAST_LAYER_TABLE
+from .last_layer_table import NO_MACRO as NO_LL_MACRO
+from .last_layer_table import encodeLastLayer
 from .cube_utils import checkMask, optimiseMoves, printAnalysis, rotate
 
 
@@ -414,10 +418,7 @@ class Cube:
         self.solveCross()
         self.solveF2LCorners()
         self.solveF2LMiddlePieces()
-        self.solveYellowCross()
-        self.alignYellowEdges()
-        self.solveYellowCorners()
-        self.final()
+        self.solveLastLayer()
 
     def solveCross(self) -> None:
         """Solves the white cross on the top of the cube.
@@ -455,121 +456,17 @@ class Cube:
             self.executeSequence(MIDDLE_INVERSE_MACROS[macro])
             macro = MIDDLE_TABLE[encodeMiddles(self.state)]
 
-    def solveYellowCross(self) -> None:
-        """Solves the yellow cross."""
+    def solveLastLayer(self) -> None:
+        """Solves the entire last layer (the yellow face) in one table-driven pass.
 
-        alg = YELLOW_CROSS_INSERTION_ALGORITHM
-
-        while not self.checkMask(YELLOW_CROSS_SOLVED_MASK):
-            executed = False
-            for face, mask in YELLOW_L_MASKS:
-                if self.checkMask(mask):
-                    self.convertSequenceFromFace(face, alg)
-                    executed = True
-                    break
-
-            for face, mask in YELLOW_LINE_MASKS:
-                if self.checkMask(mask):
-                    self.convertSequenceFromFace(face, alg)
-                    executed = True
-                    break
-
-            if not executed:
-                self.executeSequence(alg)
-
-    def alignYellowEdges(self) -> None:
-        """Aligns the yellow edges so the corners can be inserted."""
-        while not self.checkMask(YELLOW_EDGES_SOLVED_MASK):
-            # compare each side's centre (face*9 + 4) with its bottom-row middle (face*9 + 7)
-            # straight from the state string instead of decoding the whole cube
-            s = self.state
-            numMatches = 0
-            notMatchingFaces = []
-            for face in range(1, 5):
-                if s[face * 9 + 4] == s[face * 9 + 7]:
-                    numMatches += 1
-                else:
-                    notMatchingFaces.append(s[face * 9 + 4])
-
-            if numMatches == 4:
-                return
-
-            elif numMatches == 2:
-                face1 = notMatchingFaces[0]
-                face2 = notMatchingFaces[1]
-                if self.getOppositeFace(face1) == face2:
-                    self.convertSequenceFromFace(face1, "D" + YELLOW_EDGES_INSERTION_ALGORITHM)
-                    self.convertSequenceFromFace(self.getLeftFace(face1), YELLOW_EDGES_INSERTION_ALGORITHM)
-                else:
-                    if self.getLeftFace(face1) == face2:
-                        self.convertSequenceFromFace(face2, YELLOW_EDGES_INSERTION_ALGORITHM)
-                    else:
-                        self.convertSequenceFromFace(face1, YELLOW_EDGES_INSERTION_ALGORITHM)
-            else:
-                self.executeSequence("D")
-
-    def __checkValidCorners(self) -> list[str]:
-        """Checks how many of the 4 corners for the yellow face are in the correct position.
-
-        Returns:
-            list[str]: A list of face colours that have valid corners.
+        Uses a precomputed table that maps every last-layer configuration to a strictly F2L-neutral
+        macro stepping one closer to solved, so the corners and edges of the final layer are finished
+        together by a short sequence of O(1) lookups without disturbing the solved first two layers.
         """
-        # read the twelve corner squares straight out of the state string (index = face*9 + row*3 + col)
-        # rather than decoding the whole cube into a nested list
-        s = self.state
-        validCorners = []
-        if (
-            s[26] in {"R", "Y", "B"}  # faces[2][2][2]
-            and s[33] in {"R", "Y", "B"}  # faces[3][2][0]
-            and s[47] in {"R", "Y", "B"}  # faces[5][0][2]
-        ):
-            validCorners.append("B")
-        if (
-            s[35] in {"O", "Y", "B"}  # faces[3][2][2]
-            and s[42] in {"O", "Y", "B"}  # faces[4][2][0]
-            and s[53] in {"O", "Y", "B"}  # faces[5][2][2]
-        ):
-            validCorners.append("O")
-        if (
-            s[44] in {"O", "Y", "G"}  # faces[4][2][2]
-            and s[15] in {"O", "Y", "G"}  # faces[1][2][0]
-            and s[51] in {"O", "Y", "G"}  # faces[5][2][0]
-        ):
-            validCorners.append("G")
-        if (
-            s[17] in {"R", "Y", "G"}  # faces[1][2][2]
-            and s[24] in {"R", "Y", "G"}  # faces[2][2][0]
-            and s[45] in {"R", "Y", "G"}  # faces[5][0][0]
-        ):
-            validCorners.append("R")
-
-        return validCorners
-
-    def solveYellowCorners(self) -> None:
-        """Correctly orients the yellow corners."""
-
-        while True:
-            validCorners = self.__checkValidCorners()
-            if len(validCorners) == 4:
-                return
-
-            elif len(validCorners) == 0:
-                self.executeSequence(YELLOW_CORNERS_INSERTION_ALGORITHM)
-
-            else:
-                for _ in range(3):
-                    self.convertSequenceFromFace(validCorners[0], YELLOW_CORNERS_INSERTION_ALGORITHM)
-                    if len(self.__checkValidCorners()) == 4:
-                        return
-
-    def final(self) -> None:
-        """Finalizes the solution by orienting the last layer."""
-        while not self.checkMask(SOLVED_MASK):
-            # face 5 (bottom), row 0, column 0 is state index 45
-            if self.state[45] != "Y":
-                while self.state[45] != "Y":
-                    self.executeSequence(FINAL_STEP_ALGORITHM)
-            self.executeSequence("D")
+        macro = LAST_LAYER_TABLE[encodeLastLayer(self.state)]
+        while macro != NO_LL_MACRO:
+            self.executeSequence(LL_INVERSE_MACROS[macro])
+            macro = LAST_LAYER_TABLE[encodeLastLayer(self.state)]
 
     def showMask(self, mask: str) -> None:
         """Takes a mask and displays it in the terminal in a clear and easy to read way.
@@ -610,50 +507,34 @@ class Cube:
         maxCornersTime = 0
         totalMiddlesTime = 0
         maxMiddlesTime = 0
-        totalYellowCrossTime = 0
-        maxYellowCrossTime = 0
-        totalYellowEdgesTime = 0
-        maxYellowEdgesTime = 0
-        maxFinalTime = 0
-        totalFinalTime = 0
+        totalLastLayerTime = 0
+        maxLastLayerTime = 0
         totalMovesOptimised = 0
         for _ in range(numSolves):
             self.randomise()
             self.movesMade = []
             startTime = time.time()
             self.solveCross()
-            totalCrossTime += time.time() - startTime
             crossTime = time.time()
+            totalCrossTime += crossTime - startTime
             maxCrossTime = max(maxCrossTime, crossTime - startTime)
             self.solveF2LCorners()
-            totalCornersTime += time.time() - crossTime
             cornersTime = time.time()
+            totalCornersTime += cornersTime - crossTime
             maxCornersTime = max(maxCornersTime, cornersTime - crossTime)
             self.solveF2LMiddlePieces()
-            totalMiddlesTime += time.time() - cornersTime
             middlesTime = time.time()
+            totalMiddlesTime += middlesTime - cornersTime
             maxMiddlesTime = max(maxMiddlesTime, middlesTime - cornersTime)
-            self.solveYellowCross()
-            totalYellowCrossTime += time.time() - middlesTime
-            yellowCrossTime = time.time()
-            maxYellowCrossTime = max(maxYellowCrossTime, yellowCrossTime - middlesTime)
-            self.alignYellowEdges()
-            totalYellowCrossTime += time.time() - yellowCrossTime
-            yellowEdgesTime = time.time()
-            maxYellowEdgesTime = max(maxYellowEdgesTime, yellowEdgesTime - yellowCrossTime)
-            self.solveYellowCorners()
-            totalYellowEdgesTime += time.time() - yellowEdgesTime
-            yellowEdgesTime = time.time()
-            maxYellowEdgesTime = max(maxYellowEdgesTime, yellowEdgesTime - yellowEdgesTime)
-            self.final()
-            totalFinalTime += time.time() - yellowEdgesTime
-            yellowFaceTime = time.time()
-            maxFinalTime = max(maxFinalTime, yellowFaceTime - yellowEdgesTime)
+            self.solveLastLayer()
+            lastLayerTime = time.time()
+            totalLastLayerTime += lastLayerTime - middlesTime
+            maxLastLayerTime = max(maxLastLayerTime, lastLayerTime - middlesTime)
 
-            totalTime += yellowFaceTime - startTime
+            totalTime += lastLayerTime - startTime
             optimisedMoves = self.optimisedMoves
             if displayAllTimes:
-                print(f"Time Taken : {round(yellowFaceTime - startTime,2)} seconds")
+                print(f"Time Taken : {round(lastLayerTime - startTime,2)} seconds")
                 print(f"Number of Rotations: {len(optimisedMoves)}")
 
             totalMoves += len(self.movesMade)
@@ -667,15 +548,11 @@ class Cube:
             "avg_cross_time": round(totalCrossTime / numSolves, 5),
             "avg_corners_time": round(totalCornersTime / numSolves, 5),
             "avg_middles_time": round(totalMiddlesTime / numSolves, 5),
-            "avg_yellow_cross_time": round(totalYellowCrossTime / numSolves, 5),
-            "avg_yellow_edges_time": round(totalYellowEdgesTime / numSolves, 5),
-            "avg_final_time": round(totalFinalTime / numSolves, 5),
+            "avg_last_layer_time": round(totalLastLayerTime / numSolves, 5),
             "max_cross_time": round(maxCrossTime, 5),
             "max_corners_time": round(maxCornersTime, 5),
             "max_middles_time": round(maxMiddlesTime, 5),
-            "max_yellow_cross_time": round(maxYellowCrossTime, 5),
-            "max_yellow_edges_time": round(maxYellowEdgesTime, 5),
-            "max_final_time": round(maxFinalTime, 5),
+            "max_last_layer_time": round(maxLastLayerTime, 5),
         }
 
         if displayStats:
