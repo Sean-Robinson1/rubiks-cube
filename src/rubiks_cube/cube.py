@@ -317,7 +317,7 @@ class Cube:
                 except ValueError:
                     repeats = 1
 
-            moveLabel = ch + ("i" if direction == -1 else "")
+            moveLabel = ch + ("i" if direction == ANTICLOCKWISE else "")
             for _ in range(repeats):
                 func(direction)
                 self.movesMade.append(moveLabel)
