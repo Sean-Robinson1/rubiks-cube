@@ -1,5 +1,6 @@
 import copy
 import logging
+import operator
 import random
 import time
 
@@ -425,11 +426,12 @@ class Cube:
 
         Uses a precomputed table that maps every white-cross configuration to the next move on an
         optimal path to the solved cross, so the cross is solved by a short sequence of O(1) lookups
-        rather than a search.
+        rather than a search. Each move is applied as a precomposed permutation.
         """
         move = CROSS_TABLE[encodeCross(self.state)]
         while move != NO_MOVE:
-            self.executeSequence(POSSIBLE_ROTATIONS[move])
+            self.state = "".join(_CROSS_GETTERS[move](self.state))
+            self.movesMade.extend(_CROSS_MOVES[move])
             move = CROSS_TABLE[encodeCross(self.state)]
 
     def solveF2LCorners(self) -> None:
@@ -437,11 +439,12 @@ class Cube:
 
         Uses a precomputed table that maps every white-corner configuration to a cross-preserving
         macro stepping one closer to solved, so the corners are placed by a short sequence of O(1)
-        lookups without disturbing the cross.
+        lookups without disturbing the cross. Each macro is applied as a precomposed permutation.
         """
         macro = CORNER_TABLE[encodeCorners(self.state)]
         while macro != NO_MACRO:
-            self.executeSequence(INVERSE_MACROS[macro])
+            self.state = "".join(_CORNER_GETTERS[macro](self.state))
+            self.movesMade.extend(_CORNER_MOVES[macro])
             macro = CORNER_TABLE[encodeCorners(self.state)]
 
     def solveF2LMiddlePieces(self) -> None:
@@ -449,11 +452,12 @@ class Cube:
 
         Uses a precomputed table that maps every middle-edge configuration to a macro that preserves
         the cross and corners while stepping one closer to solved, so the middle layer is finished by
-        a sequence of O(1) lookups.
+        a sequence of O(1) lookups. Each macro is applied as a precomposed permutation.
         """
         macro = MIDDLE_TABLE[encodeMiddles(self.state)]
         while macro != NO_MIDDLE_MACRO:
-            self.executeSequence(MIDDLE_INVERSE_MACROS[macro])
+            self.state = "".join(_MIDDLE_GETTERS[macro](self.state))
+            self.movesMade.extend(_MIDDLE_MOVES[macro])
             macro = MIDDLE_TABLE[encodeMiddles(self.state)]
 
     def solveLastLayer(self) -> None:
@@ -462,10 +466,12 @@ class Cube:
         Uses a precomputed table that maps every last-layer configuration to a strictly F2L-neutral
         macro stepping one closer to solved, so the corners and edges of the final layer are finished
         together by a short sequence of O(1) lookups without disturbing the solved first two layers.
+        Each macro is applied as a precomposed permutation.
         """
         macro = LAST_LAYER_TABLE[encodeLastLayer(self.state)]
         while macro != NO_LL_MACRO:
-            self.executeSequence(LL_INVERSE_MACROS[macro])
+            self.state = "".join(_LL_GETTERS[macro](self.state))
+            self.movesMade.extend(_LL_MOVES[macro])
             macro = LAST_LAYER_TABLE[encodeLastLayer(self.state)]
 
     def showMask(self, mask: str) -> None:
@@ -559,3 +565,40 @@ class Cube:
             printAnalysis(results)
 
         return results
+
+
+def _compileMacros(sequences: list[str]) -> tuple[list, list]:
+    """Precompiles solve macros into single permutations plus their recorded move labels.
+
+    Each macro is a fixed move sequence, so rather than replaying it move by move through
+    executeSequence on every solve, we collapse it once into a single 54-square permutation
+    (applied with one itemgetter gather) and capture the exact labels the sequence appends to
+    movesMade. Both are read straight out of executeSequence run on a probe of 54 distinct
+    squares, so applying the compiled form is byte-identical to the move-by-move path - same resulting
+    state, same recorded moves - just far faster.
+
+    Args:
+        sequences (list[str]): The macro strings to compile (one table's move set).
+
+    Returns:
+        tuple[list, list]: Per-macro itemgetter permutations and per-macro move-label tuples.
+    """
+    getters, moves = [], []
+    scratch = Cube()
+    probe = "".join(chr(33 + i) for i in range(54))
+    for seq in sequences:
+        scratch.state = probe
+        scratch.movesMade = []
+        scratch.executeSequence(seq)
+        perm = tuple(ord(ch) - 33 for ch in scratch.state)
+        getters.append(operator.itemgetter(*perm))
+        moves.append(tuple(scratch.movesMade))
+    return getters, moves
+
+
+# precompiled per-table macro permutations and their move labels; the table lookups already return
+# the matching index into each list (cross -> POSSIBLE_ROTATIONS, the rest -> their INVERSE_MACROS)
+_CROSS_GETTERS, _CROSS_MOVES = _compileMacros(POSSIBLE_ROTATIONS)
+_CORNER_GETTERS, _CORNER_MOVES = _compileMacros(INVERSE_MACROS)
+_MIDDLE_GETTERS, _MIDDLE_MOVES = _compileMacros(MIDDLE_INVERSE_MACROS)
+_LL_GETTERS, _LL_MOVES = _compileMacros(LL_INVERSE_MACROS)
