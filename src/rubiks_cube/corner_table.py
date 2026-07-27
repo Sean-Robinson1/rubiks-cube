@@ -63,11 +63,20 @@ for _slot, _tri in enumerate(CORNERS):
 # stickers a white corner shows in that slot to its colour bucket and orientation. A slot holding
 # a yellow corner will not match, and is skipped.
 _CORNER_STICKERS = operator.itemgetter(*[p for tri in CORNERS for p in tri])
-_CORNER_PAIR = {}
-for _pair, _bucket in _ORDER.items():
-    _a, _b = tuple(_pair)
-    _CORNER_PAIR[_a + _b] = _bucket
-    _CORNER_PAIR[_b + _a] = _bucket
+_CORNER_SLOT_LUT = []
+for _slot in range(len(CORNERS)):
+    _lut = {}
+    for _pair, _bucket in _ORDER.items():
+        _a, _b = tuple(_pair)
+        for _w in range(3):  # which of the three stickers is white (the orientation)
+            _others = [i for i in range(3) if i != _w]
+            for _c1, _c2 in ((_a, _b), (_b, _a)):
+                _key = [None, None, None]
+                _key[_w] = "W"
+                _key[_others[0]] = _c1
+                _key[_others[1]] = _c2
+                _lut[(_key[0], _key[1], _key[2])] = (_bucket, _slot * 3 + _w)
+    _CORNER_SLOT_LUT.append(_lut)
 
 
 def encodeCorners(state: str) -> int:
@@ -87,13 +96,9 @@ def encodeCorners(state: str) -> int:
     digits = [0, 0, 0, 0]
     for slot in range(8):
         i = slot * 3
-        x, y, z = cols[i], cols[i + 1], cols[i + 2]
-        if x == "W":
-            digits[_CORNER_PAIR[y + z]] = slot * 3
-        elif y == "W":
-            digits[_CORNER_PAIR[x + z]] = slot * 3 + 1
-        elif z == "W":
-            digits[_CORNER_PAIR[x + y]] = slot * 3 + 2
+        entry = _CORNER_SLOT_LUT[slot].get((cols[i], cols[i + 1], cols[i + 2]))
+        if entry is not None:
+            digits[entry[0]] = entry[1]
 
     return ((digits[0] * 24 + digits[1]) * 24 + digits[2]) * 24 + digits[3]
 
