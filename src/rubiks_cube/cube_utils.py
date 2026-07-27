@@ -326,6 +326,9 @@ def serialisePaths(paths: dict) -> bytes:
 def deserialisePaths(data: bytes) -> dict:
     """Loads a packed path table.
 
+    The permutation is kept as a tuple of ints rather than bytes, so that itemgetter can unpack it
+    directly when solving instead of boxing 54 ints out of a bytes object on every call.
+
     Args:
         data (bytes): The packed path table.
 
@@ -338,7 +341,7 @@ def deserialisePaths(data: bytes) -> dict:
     while pos < n:
         idx = struct.unpack_from("<I", data, pos)[0]
         pos += 4
-        permutation = data[pos:pos + 54]
+        permutation = tuple(data[pos:pos + 54])
         pos += 54
         count = data[pos]
         pos += 1
