@@ -16,10 +16,10 @@ The table (last_layer_table.bin) is generated offline by buildTable (run this mo
 script) and loaded at import.
 """
 
+import heapq
 import itertools
 import operator
 import os
-from collections import deque
 
 from .constants import RELATIVE_FACE_MAPPING, SOLVED_MASK
 from .cube_utils import buildPathTable, deserialisePaths, rotate, serialisePaths
@@ -180,36 +180,39 @@ def encodeLastLayer(state: str) -> int:
 
 
 def buildTable() -> bytearray:
-    """Builds the last-layer macro table by breadth-first search backwards from solved.
+    """Builds the last-layer macro table by move-weighted (Dijkstra) search backwards from solved.
 
-    For every reachable last-layer state, stores the index of the macro that steps one closer to
-    solved (its inverse is applied when solving); the solved state and unreachable indices keep
-    NO_MACRO.
+    Each macro edge is weighted by its move length, so every reachable last-layer state stores the
+    macro on a *move-shortest* path to solved (its inverse is applied when solving); the solved state
+    and unreachable indices keep NO_MACRO.
 
     Returns:
         bytearray: The macro table of length TABLE_SIZE.
     """
     table = bytearray([NO_MACRO]) * TABLE_SIZE
-    seen = bytearray(TABLE_SIZE)
+    distance = [1 << 30] * TABLE_SIZE
 
     solvedIdx = encodeLastLayer(SOLVED_MASK)
-    seen[solvedIdx] = 1
+    distance[solvedIdx] = 0
     reps = {solvedIdx: SOLVED_MASK}
-    queue = deque([solvedIdx])
+    queue = [(0, solvedIdx)]
 
     while queue:
-        idx = queue.popleft()
-        state = reps.pop(idx)
+        dist, idx = heapq.heappop(queue)
+        if dist > distance[idx]:
+            continue  # stale heap entry
+        state = reps[idx]
         for macro, sequence in enumerate(MACROS):
             newState = _apply(state, sequence)
             newIdx = encodeLastLayer(newState)
-            if not seen[newIdx]:
-                seen[newIdx] = 1
+            newDistance = dist + len(sequence)
+            if newDistance < distance[newIdx]:
                 # reached newIdx from idx via this macro; stepping back towards solved applies its
                 # inverse, so store the macro index (INVERSE_MACROS[macro] is used when solving)
+                distance[newIdx] = newDistance
                 table[newIdx] = macro
                 reps[newIdx] = newState
-                queue.append(newIdx)
+                heapq.heappush(queue, (newDistance, newIdx))
 
     return table
 

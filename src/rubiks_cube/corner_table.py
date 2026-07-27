@@ -12,9 +12,9 @@ The table (corner_table.bin) is generated offline by buildTable (run this module
 and loaded at import.
 """
 
+import heapq
 import operator
 import os
-from collections import deque
 
 from .constants import POSSIBLE_ROTATIONS, SOLVED_MASK
 from .cube_utils import buildPathTable, deserialisePaths, rotate, serialisePaths
@@ -104,37 +104,42 @@ def encodeCorners(state: str) -> int:
 
 
 def buildTable() -> bytearray:
-    """Builds the corner macro table by breadth-first search backwards from the solved corners.
+    """Builds the corner macro table by move-weighted (Dijkstra) search backwards from solved.
 
-    For every reachable corner state, stores the index of the macro that steps one closer to solved
-    (its inverse is applied when solving); the solved state and unreachable indices keep NO_MACRO.
+    Each macro edge is weighted by its move length, so every reachable corner state stores the macro
+    on a *move-shortest* path to solved (its inverse is applied when solving) - placing the corners in
+    as few moves as the macro set allows, rather than in the fewest macros. The solved state and
+    unreachable indices keep NO_MACRO.
 
     Returns:
         bytearray: The macro table of length TABLE_SIZE.
     """
     table = bytearray([NO_MACRO]) * TABLE_SIZE
-    seen = bytearray(TABLE_SIZE)
+    distance = [1 << 30] * TABLE_SIZE
 
     solvedIdx = encodeCorners(SOLVED_MASK)
-    seen[solvedIdx] = 1
+    distance[solvedIdx] = 0
     reps = {solvedIdx: SOLVED_MASK}
-    queue = deque([solvedIdx])
+    queue = [(0, solvedIdx)]
 
     while queue:
-        idx = queue.popleft()
-        state = reps.pop(idx)
+        dist, idx = heapq.heappop(queue)
+        if dist > distance[idx]:
+            continue  # stale heap entry
+        state = reps[idx]
         for macro, sequence in enumerate(MACROS):
             newState = state
             for move in sequence:
                 newState = rotate(newState, move)
             newIdx = encodeCorners(newState)
-            if not seen[newIdx]:
-                seen[newIdx] = 1
-                # we reached newIdx from idx via this macro; stepping back towards solved applies its
+            newDistance = dist + len(sequence)
+            if newDistance < distance[newIdx]:
+                # reached newIdx from idx via this macro; stepping back towards solved applies its
                 # inverse, so store the macro index (INVERSE_MACROS[macro] is used when solving)
+                distance[newIdx] = newDistance
                 table[newIdx] = macro
                 reps[newIdx] = newState
-                queue.append(newIdx)
+                heapq.heappush(queue, (newDistance, newIdx))
 
     return table
 
