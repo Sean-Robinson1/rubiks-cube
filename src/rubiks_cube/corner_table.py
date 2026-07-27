@@ -17,7 +17,7 @@ import os
 from collections import deque
 
 from .constants import POSSIBLE_ROTATIONS, SOLVED_MASK
-from .cube_utils import rotate
+from .cube_utils import buildPathTable, deserialisePaths, rotate, serialisePaths
 
 # The 8 corner cubies as (sticker index, ...) triples, derived from the rotation mappings the same
 # way as the edges. The first four (those with a sticker on the white face, indices 0-8) are the
@@ -145,6 +145,34 @@ def _loadTable() -> bytearray | None:
 
 CORNER_TABLE = _loadTable()
 
+_PATHS_PATH = os.path.join(os.path.dirname(__file__), "data", "corner_paths.bin")
+
+
+def _applyMacro(state: str, tokens: list[str]) -> str:
+    for token in tokens:
+        state = rotate(state, token)
+    return state
+
+
+def buildPaths(table: bytearray = None) -> dict:
+    """Builds the full-solution table: every corner state -> (permutation, move labels) solving it."""
+    if table is None:
+        table = buildTable()
+    return buildPathTable(SOLVED_MASK, encodeCorners, table, NO_MACRO, MACROS, _applyMacro,
+                          lambda macro: INVERSE_MACROS[macro])
+
+
+def _loadPaths() -> dict | None:
+    """Loads the packed corner paths, or None if the file isn't there yet."""
+    try:
+        with open(_PATHS_PATH, "rb") as handle:
+            return deserialisePaths(handle.read())
+    except FileNotFoundError:
+        return None
+
+
+CORNER_PATHS = _loadPaths()
+
 
 if __name__ == "__main__":
     generated = buildTable()
@@ -153,3 +181,8 @@ if __name__ == "__main__":
         handle.write(generated)
     reachable = sum(1 for b in generated if b != NO_MACRO)
     print(f"wrote {_TABLE_PATH} ({len(generated)} bytes, {reachable} reachable states)")
+
+    paths = buildPaths(generated)
+    with open(_PATHS_PATH, "wb") as handle:
+        handle.write(serialisePaths(paths))
+    print(f"wrote {_PATHS_PATH} ({len(paths)} states)")

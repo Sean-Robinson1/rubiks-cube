@@ -22,7 +22,7 @@ import os
 from collections import deque
 
 from .constants import RELATIVE_FACE_MAPPING, SOLVED_MASK
-from .cube_utils import rotate
+from .cube_utils import buildPathTable, deserialisePaths, rotate, serialisePaths
 
 # the four last-layer (yellow/bottom) corner and edge slots, as sticker-index tuples. For every
 # corner the last element is the yellow-face sticker; for every edge the second element is.
@@ -225,6 +225,35 @@ def _loadTable() -> bytearray | None:
 
 LAST_LAYER_TABLE = _loadTable()
 
+_PATHS_PATH = os.path.join(os.path.dirname(__file__), "data", "last_layer_paths.bin")
+
+
+def buildPaths(table: bytearray = None) -> dict:
+    """Builds the full solution table, mapping every last layer state to the solution for it.
+
+    Args:
+        table (bytearray, optional): The macro table to follow. Built if not given.
+
+    Returns:
+        dict: Maps each state's index to its permutation and move labels.
+    """
+    if table is None:
+        table = buildTable()
+    return buildPathTable(SOLVED_MASK, encodeLastLayer, table, NO_MACRO, MACROS, _apply,
+                          lambda macro: INVERSE_MACROS[macro])
+
+
+def _loadPaths() -> dict | None:
+    """Loads the packed last-layer paths, or None if the file is missing."""
+    try:
+        with open(_PATHS_PATH, "rb") as handle:
+            return deserialisePaths(handle.read())
+    except FileNotFoundError:
+        return None
+
+
+LAST_LAYER_PATHS = _loadPaths()
+
 
 if __name__ == "__main__":
     generated = buildTable()
@@ -234,3 +263,8 @@ if __name__ == "__main__":
     with open(_TABLE_PATH, "wb") as handle:
         handle.write(generated)
     print(f"wrote {_TABLE_PATH} ({len(generated)} bytes, {reachable} reachable states, {len(MACROS)} macros)")
+
+    paths = buildPaths(generated)
+    with open(_PATHS_PATH, "wb") as handle:
+        handle.write(serialisePaths(paths))
+    print(f"wrote {_PATHS_PATH} ({len(paths)} states)")

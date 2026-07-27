@@ -17,7 +17,7 @@ from collections import deque
 
 from .constants import SOLVED_MASK
 from .cross_table import EDGES
-from .cube_utils import rotate
+from .cube_utils import buildPathTable, deserialisePaths, rotate, serialisePaths
 
 # the eight non-white edge slots (EDGES without the four white ones); the four middle edges live
 # among these during solving, sharing them with the not-yet-solved bottom (yellow) edges
@@ -138,6 +138,34 @@ def _loadTable() -> bytearray | None:
 
 MIDDLE_TABLE = _loadTable()
 
+_PATHS_PATH = os.path.join(os.path.dirname(__file__), "data", "middle_paths.bin")
+
+
+def _applyMacro(state: str, tokens: list[str]) -> str:
+    for token in tokens:
+        state = rotate(state, token)
+    return state
+
+
+def buildPaths(table: bytearray = None) -> dict:
+    """Builds the full-solution table: every middle state -> (permutation, move labels) solving it."""
+    if table is None:
+        table = buildTable()
+    return buildPathTable(SOLVED_MASK, encodeMiddles, table, NO_MACRO, MACROS, _applyMacro,
+                          lambda macro: INVERSE_MACROS[macro])
+
+
+def _loadPaths() -> dict | None:
+    """Loads the packed middle paths, or None if they haven't been genrated yet."""
+    try:
+        with open(_PATHS_PATH, "rb") as handle:
+            return deserialisePaths(handle.read())
+    except FileNotFoundError:
+        return None
+
+
+MIDDLE_PATHS = _loadPaths()
+
 
 if __name__ == "__main__":
     generated = buildTable()
@@ -146,3 +174,8 @@ if __name__ == "__main__":
         handle.write(generated)
     reachable = sum(1 for b in generated if b != NO_MACRO)
     print(f"wrote {_TABLE_PATH} ({len(generated)} bytes, {reachable} reachable states)")
+
+    paths = buildPaths(generated)
+    with open(_PATHS_PATH, "wb") as handle:
+        handle.write(serialisePaths(paths))
+    print(f"wrote {_PATHS_PATH} ({len(paths)} states)")

@@ -1,4 +1,6 @@
 import operator
+import struct
+from collections import deque
 
 from .constants import STRING_ROTATION_MAPPINGS
 
@@ -175,6 +177,175 @@ def optimiseMoves(moves: list[str]) -> list[str]:
     newList += moves[i:]
 
     return newList
+
+
+# Full-solution ("path") tables: for each reachable state of a stage, the whole solution stored as
+# one 54-square permutation plus its move labels, so a stage is solved in a single lookup.
+
+# a probe "cube" of 54 distinct characters, used to read a move sequence off as a permutation
+_PATH_PROBE = "".join(chr(33 + i) for i in range(54))
+
+# the 12 possible recorded move labels, in a fixed order; the index is the on-disk code for the label
+MOVE_LABELS = [face + direction for face in "UDFBLR" for direction in ("", "i")]
+_LABEL_TO_CODE = {label: code for code, label in enumerate(MOVE_LABELS)}
+
+
+def _parseMoves(sequence: str):
+    """Yields the rotation to apply and the label to record for each move in a sequence.
+
+    Moves are parsed exactly as executeSequence parses them: a trailing ' or i means the move is
+    anticlockwise, and its label gets an i.
+
+    Args:
+        sequence (str): The sequence of moves to parse.
+
+    Yields:
+        tuple[str, str]: The rotation and the recorded label for each move.
+    """
+    i = 0
+    n = len(sequence)
+    while i < n:
+        ch = sequence[i]
+        if ch not in "UDFBLR":
+            i += 1
+            continue
+        if i + 1 < n and sequence[i + 1] in ("'", "i"):
+            yield ch + "'", ch + "i"
+            i += 2
+        else:
+            yield ch, ch
+            i += 1
+
+
+def applySequence(state: str, sequence: str) -> str:
+    """Applies a sequence of moves to a state, parsed the same way executeSequence parses it.
+
+    Args:
+        state (str): The state to apply the moves to.
+        sequence (str): The sequence of moves to apply.
+
+    Returns:
+        str: The state after the moves have been applied.
+    """
+    for rotation, _ in _parseMoves(sequence):
+        state = rotate(state, rotation)
+    return state
+
+
+def compileSequence(sequence: str) -> tuple[tuple[int, ...], tuple[str, ...]]:
+    """Compiles a sequence of moves into a single permutation and the labels to record for it.
+
+    The permutation is the whole sequence composed into one 54 square gather, so that
+    result[i] = state[permutation[i]]. The labels are what executeSequence would append to
+    movesMade. Both are read off the distinct label probe, so applying the permutation has the same
+    effect on any state as applying the moves one at a time.
+
+    Args:
+        sequence (str): The sequence of moves to compile.
+
+    Returns:
+        tuple[tuple[int, ...], tuple[str, ...]]: The composed permutation and the move labels.
+    """
+    state = _PATH_PROBE
+    labels = []
+    for rotation, label in _parseMoves(sequence):
+        state = rotate(state, rotation)
+        labels.append(label)
+    return tuple(ord(c) - 33 for c in state), tuple(labels)
+
+
+def buildPathTable(solvedState, encodeFn, table, sentinel, generators, applyGen, stepString) -> dict:
+    """Builds a stage's full-solution table from its (already-proven) single-step table.
+
+    Enumerates every reachable state by BFS over generators, then for each state follows
+    table to solved exactly as the current solver does - so the produced solution (permutation +
+    labels) is identical to today's move-by-move output.
+
+    Args:
+        solvedState (str): The solved cube string.
+        encodeFn: The stage's encode function (state -> index).
+        table: The stage's single-step move/macro table.
+        sentinel: The table's "already solved" value.
+        generators: The forward generators used to reach every state (moves or macros).
+        applyGen: applyGen(state, generator) -> state.
+        stepString: stepString(table_value) -> move string that steps a state towards solved.
+
+    Returns:
+        dict: index -> (permutation, labels) for every reachable non-solved state.
+    """
+    solvedIdx = encodeFn(solvedState)
+    seen = {solvedIdx}
+    reps = {solvedIdx: solvedState}
+    queue = deque([solvedIdx])
+    while queue:
+        state = reps[queue.popleft()]
+        for generator in generators:
+            newState = applyGen(state, generator)
+            newIdx = encodeFn(newState)
+            if newIdx not in seen:
+                seen.add(newIdx)
+                reps[newIdx] = newState
+                queue.append(newIdx)
+
+    paths = {}
+    for idx, state in reps.items():
+        parts = []
+        s = state
+        j = idx
+        while table[j] != sentinel:
+            step = stepString(table[j])
+            parts.append(step)
+            s = applySequence(s, step)
+            j = encodeFn(s)
+        if parts:  # everything but the already-solved state
+            paths[idx] = compileSequence("".join(parts))
+    return paths
+
+
+def serialisePaths(paths: dict) -> bytes:
+    """Packs a path table into bytes, one record per entry.
+
+    Each record holds a uint32 index, a 54 byte permutation, a label count, and that many label
+    codes.
+
+    Args:
+        paths (dict): The path table to pack.
+
+    Returns:
+        bytes: The packed path table.
+    """
+    buf = bytearray()
+    for idx, (permutation, labels) in paths.items():
+        buf += struct.pack("<I", idx)
+        buf += bytes(permutation)
+        buf.append(len(labels))
+        buf += bytes(_LABEL_TO_CODE[label] for label in labels)
+    return bytes(buf)
+
+
+def deserialisePaths(data: bytes) -> dict:
+    """Loads a packed path table.
+
+    Args:
+        data (bytes): The packed path table.
+
+    Returns:
+        dict: Maps each index to its permutation and the labels of the moves solving it.
+    """
+    paths = {}
+    pos = 0
+    n = len(data)
+    while pos < n:
+        idx = struct.unpack_from("<I", data, pos)[0]
+        pos += 4
+        permutation = data[pos:pos + 54]
+        pos += 54
+        count = data[pos]
+        pos += 1
+        labels = tuple(MOVE_LABELS[code] for code in data[pos:pos + count])
+        pos += count
+        paths[idx] = (permutation, labels)
+    return paths
 
 
 def printAnalysis(analysis: dict) -> None:
