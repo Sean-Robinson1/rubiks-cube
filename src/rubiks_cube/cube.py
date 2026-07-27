@@ -528,25 +528,26 @@ class Cube:
             totalTime += lastLayerTime - startTime
             optimisedMoves = self.optimisedMoves
             if displayAllTimes:
-                print(f"Time Taken : {round(lastLayerTime - startTime,2)} seconds")
+                print(f"Time Taken : {lastLayerTime - startTime:.2g} seconds")
                 print(f"Number of Rotations: {len(optimisedMoves)}")
 
             totalMoves += len(self.movesMade)
             totalMovesOptimised += len(optimisedMoves)
 
         results = {
-            "avg_time": round(totalTime / numSolves, 5),
+            # kept at full precision so the formatting below can show significant figures
+            "avg_time": totalTime / numSolves,
             "avg_moves": round(totalMoves / numSolves, 5),
             "avg_moves_optimised": round(totalMovesOptimised / numSolves, 5),
             "avg_moves_saved": round((totalMoves - totalMovesOptimised) / numSolves, 2),
-            "avg_cross_time": round(totalCrossTime / numSolves, 5),
-            "avg_corners_time": round(totalCornersTime / numSolves, 5),
-            "avg_middles_time": round(totalMiddlesTime / numSolves, 5),
-            "avg_last_layer_time": round(totalLastLayerTime / numSolves, 5),
-            "max_cross_time": round(maxCrossTime, 5),
-            "max_corners_time": round(maxCornersTime, 5),
-            "max_middles_time": round(maxMiddlesTime, 5),
-            "max_last_layer_time": round(maxLastLayerTime, 5),
+            "avg_cross_time": totalCrossTime / numSolves,
+            "avg_corners_time": totalCornersTime / numSolves,
+            "avg_middles_time": totalMiddlesTime / numSolves,
+            "avg_last_layer_time": totalLastLayerTime / numSolves,
+            "max_cross_time": maxCrossTime,
+            "max_corners_time": maxCornersTime,
+            "max_middles_time": maxMiddlesTime,
+            "max_last_layer_time": maxLastLayerTime,
         }
 
         if displayStats:

@@ -356,22 +356,22 @@ def printAnalysis(analysis: dict) -> None:
     """
 
     print("\n-----------------------------")
-    print(f"Average Solve Time: {analysis['avg_time']}")
+    print(f"Average Solve Time: {analysis['avg_time']:.2g}")
     print(f"Avg number of Rotations: {round(analysis['avg_moves'], 5)}")
     print(f"Avg number of optimised rotations: {round(analysis['avg_moves_optimised'], 5)}")
     print(f"Avg number of rotations saved:  {round(analysis['avg_moves_saved'],2)}")
 
     print("-----------------------------")
 
-    print(f"Avg Cross Time: {analysis['avg_cross_time']}")
-    print(f"Avg Corners Time: {analysis['avg_corners_time']}")
-    print(f"Avg Middles Time: {analysis['avg_middles_time']}")
-    print(f"Avg Last Layer Time: {analysis['avg_last_layer_time']}")
+    print(f"Avg Cross Time: {analysis['avg_cross_time']:.2g}")
+    print(f"Avg Corners Time: {analysis['avg_corners_time']:.2g}")
+    print(f"Avg Middles Time: {analysis['avg_middles_time']:.2g}")
+    print(f"Avg Last Layer Time: {analysis['avg_last_layer_time']:.2g}")
 
     print("-----------------------------")
 
-    print(f"Max Cross Time: {analysis['max_cross_time']}")
-    print(f"Max Corners Time: {analysis['max_corners_time']}")
-    print(f"Max Middles Time: {analysis['max_middles_time']}")
-    print(f"Max Last Layer Time: {analysis['max_last_layer_time']}")
+    print(f"Max Cross Time: {analysis['max_cross_time']:.2g}")
+    print(f"Max Corners Time: {analysis['max_corners_time']:.2g}")
+    print(f"Max Middles Time: {analysis['max_middles_time']:.2g}")
+    print(f"Max Last Layer Time: {analysis['max_last_layer_time']:.2g}")
     print("-----------------------------")
