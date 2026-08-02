@@ -119,14 +119,21 @@ def combineMasks(mask1: str, mask2: str) -> str:
     return "".join(out)
 
 
+# opposite faces turn disjoint layers, so their moves commute and can be reordered freely
+_OPPOSITE_FACE = {"U": "D", "D": "U", "F": "B", "B": "F", "L": "R", "R": "L"}
+
+
 def optimiseMoves(moves: list[str]) -> list[str]:
     """Reduces a move list to a shorter one with the identical net effect on the cube.
 
     Consecutive quarter-turns of the same face combine, so the list is folded with a stack of
     [face, net] runs, net being that face's clockwise quarter-turns mod 4. A run that reaches a
     full turn is the identity and is dropped, which re-exposes the run beneath it to the next
-    move. Adjacent runs always have different faces, so a single left-to-right pass is enough to
-    reduce the list completely.
+    move.
+
+    A move also combines with its own face through a run of the opposite face, since opposite
+    faces commute, which reduces sequences like R L Ri to L. Adjacent runs never share a face, so
+    there is at most one such run to look past, and one left-to-right pass reduces the list fully.
 
     Args:
         moves (list[str]): The moves to optimise, each a face UDFBLR with an optional trailing
@@ -140,12 +147,20 @@ def optimiseMoves(moves: list[str]) -> list[str]:
     for move in moves:
         face = move[0]
         turn = 3 if move.endswith("i") else 1  # anticlockwise is -1, i.e. 3 clockwise turns (mod 4)
+
+        # this move's own run is either on top, or one below a run of the opposite face that it
+        # commutes with and can be moved past
         if stack and stack[-1][0] == face:
-            stack[-1][1] = (stack[-1][1] + turn) % 4
-            if stack[-1][1] == 0:  # a whole turn - this run is now the identity, so drop it
-                stack.pop()
+            index = len(stack) - 1
+        elif len(stack) > 1 and stack[-1][0] == _OPPOSITE_FACE[face] and stack[-2][0] == face:
+            index = len(stack) - 2
         else:
             stack.append([face, turn])
+            continue
+
+        stack[index][1] = (stack[index][1] + turn) % 4
+        if stack[index][1] == 0:  # a whole turn - this run is now the identity, so drop it
+            del stack[index]
 
     reduced = []
     for face, net in stack:
