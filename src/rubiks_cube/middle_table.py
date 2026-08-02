@@ -56,17 +56,19 @@ for _a, _b in NONWHITE_SLOTS:
         _ORDER[frozenset((_ca, _cb))] = len(_ORDER)
 
 # fast-encode helpers: one gather of the sixteen non-white-slot stickers, plus a per-slot lookup
-# from the two stickers a middle edge shows in that slot to its colour bucket and orientation. A
-# slot holding a yellow or white edge will not match, and is skipped.
+# from the two stickers a middle edge shows in that slot to its contribution to the index. The
+# slot's place value is folded into the table, so encode only has to sum the contributions it
+# finds. A slot holding a yellow or white edge will not match, and is skipped.
 _MIDDLE_STICKERS = operator.itemgetter(*[p for pair in NONWHITE_SLOTS for p in pair])
+_POW16 = (16**3, 16**2, 16, 1)  # place value of each colour bucket (bucket 0 is the most significant)
 _MIDDLE_SLOT_LUT = []
 for _slot in range(len(NONWHITE_SLOTS)):
     _lut = {}
     for _pair, _bucket in _ORDER.items():
         _x, _y = tuple(_pair)
         # orientation 0 when the first sticker holds the lexicographically smaller colour
-        _lut[(_x, _y)] = (_bucket, _slot * 2 + (0 if _x < _y else 1))
-        _lut[(_y, _x)] = (_bucket, _slot * 2 + (0 if _y < _x else 1))
+        _lut[(_x, _y)] = (_slot * 2 + (0 if _x < _y else 1)) * _POW16[_bucket]
+        _lut[(_y, _x)] = (_slot * 2 + (0 if _y < _x else 1)) * _POW16[_bucket]
     _MIDDLE_SLOT_LUT.append(_lut)
 
 
@@ -84,13 +86,13 @@ def encodeMiddles(state: str) -> int:
         int: The encoded middle-edge state.
     """
     stickers = _MIDDLE_STICKERS(state)
-    digits = [0, 0, 0, 0]
+    idx = 0
     for slot in range(8):
-        entry = _MIDDLE_SLOT_LUT[slot].get((stickers[slot * 2], stickers[slot * 2 + 1]))
-        if entry is not None:
-            digits[entry[0]] = entry[1]
+        contribution = _MIDDLE_SLOT_LUT[slot].get((stickers[slot * 2], stickers[slot * 2 + 1]))
+        if contribution is not None:
+            idx += contribution
 
-    return ((digits[0] * 16 + digits[1]) * 16 + digits[2]) * 16 + digits[3]
+    return idx
 
 
 def buildTable() -> bytearray:

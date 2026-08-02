@@ -135,6 +135,32 @@ for _perm in itertools.permutations(range(4)):
     _RANK4[((_perm[0] * 4 + _perm[1]) * 4 + _perm[2]) * 4 + _perm[3]] = _rank(list(_perm))
 _POW3 = (1, 3, 9, 27)
 _POW2 = (1, 2, 4, 8)
+_KEYPLACE = (64, 16, 4, 1)  # base-4 place value of each slot in the packed piece-id key (slot 0 most significant)
+
+# Per-slot lookup tables, one dict.get per slot. A corner slot's three stickers (exactly one is the
+# yellow-face sticker) map to the piece id shifted into this slot's base-4 place, and the yellow
+# sticker's position (0/1/2) scaled by this slot's base-3 place.
+_LL_CORNER_LUT = []
+for _slot in range(4):
+    _lut = {}
+    for _cc, _cid in _LL_CORNER_PAIR.items():  # _cc is a 2-char string of the two non-yellow colours
+        _c1, _c2 = _cc[0], _cc[1]
+        _keyPart = _cid * _KEYPLACE[_slot]
+        _lut[("Y", _c1, _c2)] = (_keyPart, 0)                 # yellow sticker first  -> pos 0
+        _lut[(_c1, "Y", _c2)] = (_keyPart, 1 * _POW3[_slot])  # yellow sticker middle -> pos 1
+        _lut[(_c1, _c2, "Y")] = (_keyPart, 2 * _POW3[_slot])  # yellow sticker last   -> pos 2
+    _LL_CORNER_LUT.append(_lut)
+
+# An edge slot's two stickers map likewise to the edge id in this slot's base-4 place, and this
+# slot's flip bit, set only when the yellow sticker is on the yellow-face side.
+_LL_EDGE_LUT = []
+for _slot in range(4):
+    _lut = {}
+    for _colour, _eid in _EDGE_ID.items():
+        _keyPart = _eid * _KEYPLACE[_slot]
+        _lut[(_colour, "Y")] = (_keyPart, _POW2[_slot])  # yellow on the yellow-face side -> flipped
+        _lut[("Y", _colour)] = (_keyPart, 0)             # yellow on the other side       -> not flipped
+    _LL_EDGE_LUT.append(_lut)
 
 
 def encodeLastLayer(state: str) -> int:
@@ -155,26 +181,17 @@ def encodeLastLayer(state: str) -> int:
     cornerOri = 0
     for slot in range(4):
         i = slot * 3
-        x, y, z = corners[i], corners[i + 1], corners[i + 2]
-        if x == "Y":
-            pos, pid = 0, _LL_CORNER_PAIR[y + z]
-        elif y == "Y":
-            pos, pid = 1, _LL_CORNER_PAIR[x + z]
-        else:
-            pos, pid = 2, _LL_CORNER_PAIR[x + y]
-        cornerKey = cornerKey * 4 + pid
-        cornerOri += pos * _POW3[slot]
+        keyPart, oriPart = _LL_CORNER_LUT[slot][(corners[i], corners[i + 1], corners[i + 2])]
+        cornerKey += keyPart
+        cornerOri += oriPart
 
     edges = _LL_EDGE_STICKERS(state)
     edgeKey = 0
     edgeOri = 0
     for slot in range(4):
-        a, b = edges[slot * 2], edges[slot * 2 + 1]
-        if b == "Y":
-            edgeKey = edgeKey * 4 + _EDGE_ID[a]
-            edgeOri += _POW2[slot]
-        else:
-            edgeKey = edgeKey * 4 + _EDGE_ID[b]
+        keyPart, oriPart = _LL_EDGE_LUT[slot][(edges[slot * 2], edges[slot * 2 + 1])]
+        edgeKey += keyPart
+        edgeOri += oriPart
 
     return ((_RANK4[cornerKey] * 81 + cornerOri) * 24 + _RANK4[edgeKey]) * 16 + edgeOri
 

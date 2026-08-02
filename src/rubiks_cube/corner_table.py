@@ -60,9 +60,11 @@ for _slot, _tri in enumerate(CORNERS):
         _ORDER[frozenset(c for c in _cols if c != "W")] = len(_ORDER)
 
 # fast-encode helpers: one gather of all 24 corner stickers, plus a per-slot lookup from the three
-# stickers a white corner shows in that slot to its colour bucket and orientation. A slot holding
-# a yellow corner will not match, and is skipped.
+# stickers a white corner shows in that slot to its contribution to the index. The slot's place
+# value is folded into the table, so encode only has to sum the contributions it finds. A slot
+# holding a yellow corner will not match, and is skipped.
 _CORNER_STICKERS = operator.itemgetter(*[p for tri in CORNERS for p in tri])
+_POW24 = (24**3, 24**2, 24, 1)  # place value of each colour bucket (bucket 0 is the most significant)
 _CORNER_SLOT_LUT = []
 for _slot in range(len(CORNERS)):
     _lut = {}
@@ -75,7 +77,7 @@ for _slot in range(len(CORNERS)):
                 _key[_w] = "W"
                 _key[_others[0]] = _c1
                 _key[_others[1]] = _c2
-                _lut[(_key[0], _key[1], _key[2])] = (_bucket, _slot * 3 + _w)
+                _lut[(_key[0], _key[1], _key[2])] = (_slot * 3 + _w) * _POW24[_bucket]
     _CORNER_SLOT_LUT.append(_lut)
 
 
@@ -93,14 +95,14 @@ def encodeCorners(state: str) -> int:
         int: The encoded white-corner state.
     """
     cols = _CORNER_STICKERS(state)
-    digits = [0, 0, 0, 0]
+    idx = 0
     for slot in range(8):
         i = slot * 3
-        entry = _CORNER_SLOT_LUT[slot].get((cols[i], cols[i + 1], cols[i + 2]))
-        if entry is not None:
-            digits[entry[0]] = entry[1]
+        contribution = _CORNER_SLOT_LUT[slot].get((cols[i], cols[i + 1], cols[i + 2]))
+        if contribution is not None:
+            idx += contribution
 
-    return ((digits[0] * 24 + digits[1]) * 24 + digits[2]) * 24 + digits[3]
+    return idx
 
 
 def buildTable() -> bytearray:
