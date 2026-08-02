@@ -407,13 +407,37 @@ class Cube:
         self.executeSequence(out)
 
     def solve(self) -> None:
-        """Solves the cube stage by stage, using a combination of pathfinding and
-        predefined sequences to achieve the solution."""
-        self.movesMade = []
-        self.solveCross()
-        self.solveF2LCorners()
-        self.solveF2LMiddlePieces()
-        self.solveLastLayer()
+        """Solves the cube stage by stage, each stage a single lookup in a precomputed table.
+
+        This does the same work as calling solveCross, solveF2LCorners, solveF2LMiddlePieces and
+        solveLastLayer in turn, but keeps the state in a local variable and only joins it back into
+        a string at the end, rather than after every stage.
+        """
+        state = self.state
+        moves = []
+        # a stage with no entry in its table is already solved
+        entry = CROSS_PATHS.get(encodeCross(state))
+        if entry is not None:
+            permutation, labels = entry
+            state = operator.itemgetter(*permutation)(state)
+            moves += labels
+        entry = CORNER_PATHS.get(encodeCorners(state))
+        if entry is not None:
+            permutation, labels = entry
+            state = operator.itemgetter(*permutation)(state)
+            moves += labels
+        entry = MIDDLE_PATHS.get(encodeMiddles(state))
+        if entry is not None:
+            permutation, labels = entry
+            state = operator.itemgetter(*permutation)(state)
+            moves += labels
+        entry = LAST_LAYER_PATHS.get(encodeLastLayer(state))
+        if entry is not None:
+            permutation, labels = entry
+            state = operator.itemgetter(*permutation)(state)
+            moves += labels
+        self.state = "".join(state)
+        self.movesMade = moves
 
     def _applyPath(self, paths: dict, index: int) -> None:
         """Applies a stage's whole precomputed solution to the cube in one step.
