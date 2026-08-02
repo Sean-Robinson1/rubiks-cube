@@ -8,7 +8,7 @@ from .constants import *
 from .corner_table import CORNER_PATHS, encodeCorners
 from .cross_table import CROSS_PATHS, encodeCross
 from .middle_table import MIDDLE_PATHS, encodeMiddles
-from .last_layer_table import LAST_LAYER_PATHS, encodeLastLayer
+from .last_layer_table import LAST_LAYER_PATHS, LAST_LAYER_KEY
 from .cube_utils import checkMask, optimiseMoves, printAnalysis, rotate
 
 
@@ -431,7 +431,7 @@ class Cube:
             permutation, labels = entry
             state = operator.itemgetter(*permutation)(state)
             moves += labels
-        entry = LAST_LAYER_PATHS.get(encodeLastLayer(state))
+        entry = LAST_LAYER_PATHS.get(LAST_LAYER_KEY(state))
         if entry is not None:
             permutation, labels = entry
             state = operator.itemgetter(*permutation)(state)
@@ -484,7 +484,7 @@ class Cube:
         One lookup returns the entire F2L-neutral solution for the current last-layer configuration,
         applied as a single permutation, finishing the cube without disturbing the first two layers.
         """
-        self._applyPath(LAST_LAYER_PATHS, encodeLastLayer(self.state))
+        self._applyPath(LAST_LAYER_PATHS, LAST_LAYER_KEY(self.state))
 
     def showMask(self, mask: str) -> None:
         """Takes a mask and displays it in the terminal in a clear and easy to read way.

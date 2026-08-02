@@ -22,7 +22,7 @@ import operator
 import os
 
 from .constants import RELATIVE_FACE_MAPPING, SOLVED_MASK
-from .cube_utils import buildPathTable, deserialisePaths, rotate, serialisePaths
+from .cube_utils import buildPathTable, deserialiseKeyedPaths, rotate, serialiseKeyedPaths
 
 # the four last-layer (yellow/bottom) corner and edge slots, as sticker-index tuples. For every
 # corner the last element is the yellow-face sticker; for every edge the second element is.
@@ -125,6 +125,13 @@ def _rank(perm: list[int]) -> int:
 # table keyed by the ids packed as base-4 digits (0-255).
 _LL_CORNER_STICKERS = operator.itemgetter(*[p for tri in LL_CORNERS for p in tri])
 _LL_EDGE_STICKERS = operator.itemgetter(*[p for pair in LL_EDGES for p in pair])
+
+# Once the F2L is solved the 20 last-layer stickers describe the last layer uniquely, so the
+# gathered sticker tuple can stand in for the encode index. The solver keys the path table by that
+# tuple directly; encodeLastLayer is still what builds the table.
+_LL_KEY_POSITIONS = [p for tri in LL_CORNERS for p in tri] + [p for pair in LL_EDGES for p in pair]
+_LL_KEY_LENGTH = len(_LL_KEY_POSITIONS)
+LAST_LAYER_KEY = operator.itemgetter(*_LL_KEY_POSITIONS)
 _LL_CORNER_PAIR = {}
 for _pair, _id in _CORNER_ID.items():
     _x, _y = tuple(_pair)
@@ -251,23 +258,26 @@ _PATHS_PATH = os.path.join(os.path.dirname(__file__), "data", "last_layer_paths.
 def buildPaths(table: bytearray = None) -> dict:
     """Builds the full solution table, mapping every last layer state to the solution for it.
 
+    The table is keyed by the 20 sticker gather tuple rather than the encode index, so that the
+    solver can look a state up straight from its stickers with no encode step.
+
     Args:
         table (bytearray, optional): The macro table to follow. Built if not given.
 
     Returns:
-        dict: Maps each state's index to its permutation and move labels.
+        dict: Maps each state's sticker tuple to its permutation and move labels.
     """
     if table is None:
         table = buildTable()
     return buildPathTable(SOLVED_MASK, encodeLastLayer, table, NO_MACRO, MACROS, _apply,
-                          lambda macro: INVERSE_MACROS[macro])
+                          lambda macro: INVERSE_MACROS[macro], keyFn=LAST_LAYER_KEY)
 
 
 def _loadPaths() -> dict | None:
     """Loads the packed last-layer paths, or None if the file is missing."""
     try:
         with open(_PATHS_PATH, "rb") as handle:
-            return deserialisePaths(handle.read())
+            return deserialiseKeyedPaths(handle.read(), _LL_KEY_LENGTH)
     except FileNotFoundError:
         return None
 
@@ -286,5 +296,5 @@ if __name__ == "__main__":
 
     paths = buildPaths(generated)
     with open(_PATHS_PATH, "wb") as handle:
-        handle.write(serialisePaths(paths))
+        handle.write(serialiseKeyedPaths(paths))
     print(f"wrote {_PATHS_PATH} ({len(paths)} states)")

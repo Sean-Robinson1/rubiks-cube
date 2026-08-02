@@ -254,7 +254,8 @@ def compileSequence(sequence: str) -> tuple[tuple[int, ...], tuple[str, ...]]:
     return tuple(ord(c) - 33 for c in state), tuple(labels)
 
 
-def buildPathTable(solvedState, encodeFn, table, sentinel, generators, applyGen, stepString) -> dict:
+def buildPathTable(solvedState, encodeFn, table, sentinel, generators, applyGen, stepString,
+                   keyFn=None) -> dict:
     """Builds a stage's full-solution table from its (already-proven) single-step table.
 
     Enumerates every reachable state by BFS over generators, then for each state follows
@@ -269,9 +270,14 @@ def buildPathTable(solvedState, encodeFn, table, sentinel, generators, applyGen,
         generators: The forward generators used to reach every state (moves or macros).
         applyGen: applyGen(state, generator) -> state.
         stepString: stepString(table_value) -> move string that steps a state towards solved.
+        keyFn: Optional keyFn(state) -> hashable used as each entry's key instead of its encode
+            index. Only valid when it is a bijection with the index over reachable states (so no two
+            states collide onto one key); this lets the solver look a stage up straight from the
+            gathered stickers without computing the index. Defaults to keying by index.
 
     Returns:
-        dict: index -> (permutation, labels) for every reachable non-solved state.
+        dict: key -> (permutation, labels) for every reachable non-solved state (key is the
+        encode index, or keyFn(state) when given).
     """
     solvedIdx = encodeFn(solvedState)
     seen = {solvedIdx}
@@ -298,7 +304,7 @@ def buildPathTable(solvedState, encodeFn, table, sentinel, generators, applyGen,
             s = applySequence(s, step)
             j = encodeFn(s)
         if parts:  # everything but the already-solved state
-            paths[idx] = compileSequence("".join(parts))
+            paths[idx if keyFn is None else keyFn(state)] = compileSequence("".join(parts))
     return paths
 
 
@@ -348,6 +354,56 @@ def deserialisePaths(data: bytes) -> dict:
         labels = tuple(MOVE_LABELS[code] for code in data[pos:pos + count])
         pos += count
         paths[idx] = (permutation, labels)
+    return paths
+
+
+def serialiseKeyedPaths(paths: dict) -> bytes:
+    """Packs a path table keyed by sticker tuples into bytes, one record per entry.
+
+    Each record holds the key's stickers, a 54 byte permutation, a label count, and that many label
+    codes. Every key must be the same length, so that the fixed size records parse back cleanly.
+
+    Args:
+        paths (dict): The path table to pack, keyed by tuples of single character colours.
+
+    Returns:
+        bytes: The packed path table.
+    """
+    buf = bytearray()
+    for key, (permutation, labels) in paths.items():
+        buf += bytes(ord(c) for c in key)
+        buf += bytes(permutation)
+        buf.append(len(labels))
+        buf += bytes(_LABEL_TO_CODE[label] for label in labels)
+    return bytes(buf)
+
+
+def deserialiseKeyedPaths(data: bytes, keyLength: int) -> dict:
+    """Loads a table packed by serialiseKeyedPaths.
+
+    Each key is decoded back to a tuple of single character strings, so that it matches the tuple a
+    stage's sticker gather produces when looking a state up.
+
+    Args:
+        data (bytes): The packed path table.
+        keyLength (int): The number of stickers making up each key.
+
+    Returns:
+        dict: Maps each key to its permutation and the labels of the moves solving it.
+    """
+    paths = {}
+    pos = 0
+    n = len(data)
+    while pos < n:
+        key = tuple(chr(b) for b in data[pos:pos + keyLength])
+        pos += keyLength
+        permutation = tuple(data[pos:pos + 54])
+        pos += 54
+        count = data[pos]
+        pos += 1
+        labels = tuple(MOVE_LABELS[code] for code in data[pos:pos + count])
+        pos += count
+        paths[key] = (permutation, labels)
     return paths
 
 
