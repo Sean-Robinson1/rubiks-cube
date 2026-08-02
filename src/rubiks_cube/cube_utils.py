@@ -120,63 +120,43 @@ def combineMasks(mask1: str, mask2: str) -> str:
 
 
 def optimiseMoves(moves: list[str]) -> list[str]:
-    """
-    Looks through a list of moves and applies general rules to reduce the
-    total number of rotations while maintaining the same output. i.e. running
-    this function will result in a shorter list of moves that will perform
-    the same transformation on the cube.
+    """Reduces a move list to a shorter one with the identical net effect on the cube.
+
+    Consecutive quarter-turns of the same face combine, so the list is folded with a stack of
+    [face, net] runs, net being that face's clockwise quarter-turns mod 4. A run that reaches a
+    full turn is the identity and is dropped, which re-exposes the run beneath it to the next
+    move. Adjacent runs always have different faces, so a single left-to-right pass is enough to
+    reduce the list completely.
 
     Args:
-        moves (list[str]): The list of moves to optimise.
+        moves (list[str]): The moves to optimise, each a face UDFBLR with an optional trailing
+            i for anticlockwise.
 
     Returns:
-        list[str]: The optimised list of moves.
+        list[str]: The reduced moves, never longer than the input. A 180-degree turn is written as
+        two quarter-turns, as there is no double-turn label.
     """
-    ## checking if there is a repeated section of 4
-    newList = []
-    i = 0
-    while i <= len(moves) - 4:
-        if moves[i] == moves[i + 1] == moves[i + 2] == moves[i + 3]:
-            i += 4
+    stack: list[list] = []  # [face, net] runs, net in {1, 2, 3}; adjacent runs have different faces
+    for move in moves:
+        face = move[0]
+        turn = 3 if move.endswith("i") else 1  # anticlockwise is -1, i.e. 3 clockwise turns (mod 4)
+        if stack and stack[-1][0] == face:
+            stack[-1][1] = (stack[-1][1] + turn) % 4
+            if stack[-1][1] == 0:  # a whole turn - this run is now the identity, so drop it
+                stack.pop()
         else:
-            newList.append(moves[i])
-            i += 1
+            stack.append([face, turn])
 
-    newList += moves[i:]
-
-    ## replacing repeated sections of length 3
-    moves = newList.copy()
-    newList = []
-    i = 0
-    while i <= len(moves) - 3:
-        if moves[i] == moves[i + 1] == moves[i + 2]:
-            if len(moves[i]) == 1:
-                newList.append(moves[i] + "i")
-            else:
-                newList.append(moves[i][0])
-            i += 3
-
-        else:
-            newList.append(moves[i])
-            i += 1
-
-    newList += moves[i:]
-
-    ## removing all occurences of a move followed by its inverse
-
-    moves = newList.copy()
-    newList = []
-    i = 0
-    while i < len(moves) - 1:
-        if moves[i][0] == moves[i + 1][0] and moves[i] != moves[i + 1]:
-            i += 2
-        else:
-            newList.append(moves[i])
-            i += 1
-    # append whatever tail is left (the last move when it wasn't consumed as part of an inverse pair)
-    newList += moves[i:]
-
-    return newList
+    reduced = []
+    for face, net in stack:
+        if net == 1:
+            reduced.append(face)
+        elif net == 3:
+            reduced.append(face + "i")
+        else:  # net == 2: a 180-degree turn, written as two quarter-turns
+            reduced.append(face)
+            reduced.append(face)
+    return reduced
 
 
 # Full-solution ("path") tables: for each reachable state of a stage, the whole solution stored as
