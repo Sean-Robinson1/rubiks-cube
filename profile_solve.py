@@ -37,6 +37,21 @@ except ModuleNotFoundError:  # run straight from a source checkout without insta
 STAGES = ["solveCross", "solveF2LCorners", "solveF2LMiddlePieces", "solveLastLayer"]
 
 
+def _isBuiltin(func) -> bool:
+    """Checks whether a profiled function is a C or built-in function.
+
+    pstats keys those with a '~' filename and a line number of 0.
+
+    Args:
+        func (tuple): The (filename, line number, name) key pstats uses.
+
+    Returns:
+        bool: True if the function is a built-in, False otherwise.
+    """
+    filename, lineno, _ = func
+    return not filename or filename == "~" or lineno == 0
+
+
 def _formatFunc(func) -> str:
     """Turns a pstats function key into a short readable label.
 
@@ -47,8 +62,8 @@ def _formatFunc(func) -> str:
         str: The label to print for the function.
     """
     filename, lineno, name = func
-    if not filename or filename == "~" or lineno == 0:
-        return name  # a built-in / C function, e.g. {method 'join' of 'str' objects}
+    if _isBuiltin(func):
+        return name  # a built-in / C function, e.g. <method 'join' of 'str' objects>
     return f"{os.path.basename(filename)}:{lineno}({name})"
 
 
@@ -121,7 +136,11 @@ def profileSummary(cube: Cube, scrambles: list, includeScramble: bool, sortKey: 
     rows = []
     for func, (_pc, ncalls, tottime, cumtime, _callers) in entries.items():
         label = _formatFunc(func)
-        if not showAll and "rubiks_cube" not in (func[0] or "") and not label.startswith("{"):
+        # default (non --all) view: keep the solver's own functions and the C primitives they call
+        # (join, dict.get, itemgetter), dropping stdlib/harness noise and the profiler's own frames
+        if not showAll and "rubiks_cube" not in (func[0] or "") and not _isBuiltin(func):
+            continue
+        if not showAll and "_lsprof" in label:
             continue
         rows.append((tottime, cumtime, ncalls, label))
 
