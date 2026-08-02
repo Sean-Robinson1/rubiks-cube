@@ -15,7 +15,7 @@ def run_analysis(q: queue.Queue) -> None:
     """
     try:
         cube = Cube()
-        results = cube.analyseSolves(1000, displayAllTimes=False, displayStats=True)
+        results = cube.analyseSolves(3000, displayAllTimes=False, displayStats=True)
         q.put(results)
     except Exception as e:
         q.put(e)
