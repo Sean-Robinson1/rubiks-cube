@@ -22,7 +22,8 @@ import operator
 import os
 
 from .constants import RELATIVE_FACE_MAPPING, SOLVED_MASK
-from .cube_utils import buildPathTable, deserialiseKeyedPaths, rotate, serialiseKeyedPaths
+from .cube_utils import (applyMoves, buildPathTable, deserialiseKeyedPaths, invertMove,
+                         serialiseKeyedPaths)
 
 # the four last-layer (yellow/bottom) corner and edge slots, as sticker-index tuples. For every
 # corner the last element is the yellow-face sticker; for every edge the second element is.
@@ -45,23 +46,13 @@ _NON_LL = [i for i in range(54) if i not in _LL_INDICES]
 _PROBE = "".join(chr(33 + i) for i in range(54))
 
 
-def _invertMove(move: str) -> str:
-    return move[0] if move.endswith("'") else move + "'"
-
-
-def _apply(state: str, tokens: list[str]) -> str:
-    for move in tokens:
-        state = rotate(state, move)
-    return state
-
-
 def _strictNeutral(tokens: list[str]) -> bool:
     """True if the macro leaves every non-last-layer cubie exactly where it was.
 
     Tested on the distinct-label probe, so this is a property of the permutation itself and therefore
     holds from any cube state, not just the solved one.
     """
-    result = _apply(_PROBE, tokens)
+    result = applyMoves(_PROBE, tokens)
     return all(result[i] == _PROBE[i] for i in _NON_LL)
 
 
@@ -87,18 +78,18 @@ _FACES = ["R", "B", "G", "O"]
 # build the macro set: every strictly-neutral face-variant of every base (de-duplicated, order kept)
 # plus the free bottom turns. Filtering here makes F2L-safety a self-enforcing invariant of the table.
 MACROS: list[list[str]] = []
-_seen_macros = set()
+_seenMacros = set()
 for _base in _BASE_MACROS:
     for _face in _FACES:
         _variant = _conjugate(_face, _base)
         _key = tuple(_variant)
-        if _key not in _seen_macros and _strictNeutral(_variant):
-            _seen_macros.add(_key)
+        if _key not in _seenMacros and _strictNeutral(_variant):
+            _seenMacros.add(_key)
             MACROS.append(_variant)
 MACROS += [["D"], ["D'"], ["D", "D"]]
 
 # the move sequence (as a string) that undoes each macro - applied to step towards the solved layer
-INVERSE_MACROS = ["".join(_invertMove(m) for m in reversed(seq)) for seq in MACROS]
+INVERSE_MACROS = ["".join(invertMove(m) for m in reversed(seq)) for seq in MACROS]
 
 # canonical piece ids from the solved cube: a corner is identified by its two non-yellow colours, an
 # edge by its one non-yellow colour, so the same piece always maps to the same id regardless of slot
@@ -227,7 +218,7 @@ def buildTable() -> bytearray:
             continue  # stale heap entry
         state = reps[idx]
         for macro, sequence in enumerate(MACROS):
-            newState = _apply(state, sequence)
+            newState = applyMoves(state, sequence)
             newIdx = encodeLastLayer(newState)
             newDistance = dist + len(sequence)
             if newDistance < distance[newIdx]:
@@ -269,7 +260,7 @@ def buildPaths(table: bytearray = None) -> dict:
     """
     if table is None:
         table = buildTable()
-    return buildPathTable(SOLVED_MASK, encodeLastLayer, table, NO_MACRO, MACROS, _apply,
+    return buildPathTable(SOLVED_MASK, encodeLastLayer, table, NO_MACRO, MACROS, applyMoves,
                           lambda macro: INVERSE_MACROS[macro], keyFn=LAST_LAYER_KEY)
 
 

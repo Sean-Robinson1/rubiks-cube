@@ -16,8 +16,8 @@ import heapq
 import operator
 import os
 
-from .constants import POSSIBLE_ROTATIONS, SOLVED_MASK
-from .cube_utils import buildPathTable, deserialisePaths, rotate, serialisePaths
+from .constants import SOLVED_MASK
+from .cube_utils import applyMoves, buildPathTable, deserialisePaths, invertMove, serialisePaths
 
 # The 8 corner cubies as (sticker index, ...) triples, derived from the rotation mappings the same
 # way as the edges. The first four (those with a sticker on the white face, indices 0-8) are the
@@ -45,12 +45,8 @@ NO_MACRO = 255
 _TABLE_PATH = os.path.join(os.path.dirname(__file__), "data", "corner_table.bin")
 
 
-def _invertMove(move: str) -> str:
-    return move[0] if move.endswith("'") else move + "'"
-
-
 # the move sequence (as a string) that undoes each macro - applied to step towards the solved corners
-INVERSE_MACROS = ["".join(_invertMove(m) for m in reversed(seq)) for seq in MACROS]
+INVERSE_MACROS = ["".join(invertMove(m) for m in reversed(seq)) for seq in MACROS]
 
 # map each white corner's colour pair to a fixed index, from the solved cube
 _ORDER = {}
@@ -130,9 +126,7 @@ def buildTable() -> bytearray:
             continue  # stale heap entry
         state = reps[idx]
         for macro, sequence in enumerate(MACROS):
-            newState = state
-            for move in sequence:
-                newState = rotate(newState, move)
+            newState = applyMoves(state, sequence)
             newIdx = encodeCorners(newState)
             newDistance = dist + len(sequence)
             if newDistance < distance[newIdx]:
@@ -160,17 +154,11 @@ CORNER_TABLE = _loadTable()
 _PATHS_PATH = os.path.join(os.path.dirname(__file__), "data", "corner_paths.bin")
 
 
-def _applyMacro(state: str, tokens: list[str]) -> str:
-    for token in tokens:
-        state = rotate(state, token)
-    return state
-
-
 def buildPaths(table: bytearray = None) -> dict:
     """Builds the full-solution table: every corner state -> (permutation, move labels) solving it."""
     if table is None:
         table = buildTable()
-    return buildPathTable(SOLVED_MASK, encodeCorners, table, NO_MACRO, MACROS, _applyMacro,
+    return buildPathTable(SOLVED_MASK, encodeCorners, table, NO_MACRO, MACROS, applyMoves,
                           lambda macro: INVERSE_MACROS[macro])
 
 

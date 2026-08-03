@@ -25,6 +25,33 @@ def rotate(mask: str, rotation: str) -> str:
     return "".join(_ROTATION_GETTERS[rotation](mask))
 
 
+def applyMoves(state: str, moves) -> str:
+    """Applies a list of already-split moves to a state.
+
+    Args:
+        state (str): The state to apply the moves to.
+        moves: An iterable of rotations, e.g. ["R", "D'", "R'"].
+
+    Returns:
+        str: The state after the moves have been applied.
+    """
+    for move in moves:
+        state = rotate(state, move)
+    return state
+
+
+def invertMove(move: str) -> str:
+    """Returns the move that undoes a single move.
+
+    Args:
+        move (str): The move to invert.
+
+    Returns:
+        str: The inverted move.
+    """
+    return move[0] if move.endswith("'") else move + "'"
+
+
 # cache of the non-dot positions of each mask, so a mask is only scanned once
 # and repeated checks (the vast majority) iterate only the squares that matter
 _sparseMaskCache: dict[str, tuple[tuple[int, str], ...]] = {}

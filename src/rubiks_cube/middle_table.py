@@ -17,7 +17,7 @@ import os
 
 from .constants import SOLVED_MASK
 from .cross_table import EDGES
-from .cube_utils import buildPathTable, deserialisePaths, rotate, serialisePaths
+from .cube_utils import applyMoves, buildPathTable, deserialisePaths, invertMove, serialisePaths
 
 # the eight non-white edge slots (EDGES without the four white ones); the four middle edges live
 # among these during solving, sharing them with the not-yet-solved bottom (yellow) edges
@@ -41,12 +41,8 @@ NO_MACRO = 255
 _TABLE_PATH = os.path.join(os.path.dirname(__file__), "data", "middle_table.bin")
 
 
-def _invertMove(move: str) -> str:
-    return move[0] if move.endswith("'") else move + "'"
-
-
 # the move sequence (as a string) that undoes each macro - applied to step towards solved middles
-INVERSE_MACROS = ["".join(_invertMove(m) for m in reversed(seq)) for seq in MACROS]
+INVERSE_MACROS = ["".join(invertMove(m) for m in reversed(seq)) for seq in MACROS]
 
 # map each middle edge's colour pair to a fixed index, from the solved cube
 _ORDER = {}
@@ -119,9 +115,7 @@ def buildTable() -> bytearray:
             continue  # stale heap entry
         state = reps[idx]
         for macro, sequence in enumerate(MACROS):
-            newState = state
-            for move in sequence:
-                newState = rotate(newState, move)
+            newState = applyMoves(state, sequence)
             newIdx = encodeMiddles(newState)
             newDistance = dist + len(sequence)
             if newDistance < distance[newIdx]:
@@ -147,17 +141,11 @@ MIDDLE_TABLE = _loadTable()
 _PATHS_PATH = os.path.join(os.path.dirname(__file__), "data", "middle_paths.bin")
 
 
-def _applyMacro(state: str, tokens: list[str]) -> str:
-    for token in tokens:
-        state = rotate(state, token)
-    return state
-
-
 def buildPaths(table: bytearray = None) -> dict:
     """Builds the full-solution table: every middle state -> (permutation, move labels) solving it."""
     if table is None:
         table = buildTable()
-    return buildPathTable(SOLVED_MASK, encodeMiddles, table, NO_MACRO, MACROS, _applyMacro,
+    return buildPathTable(SOLVED_MASK, encodeMiddles, table, NO_MACRO, MACROS, applyMoves,
                           lambda macro: INVERSE_MACROS[macro])
 
 
