@@ -1,14 +1,15 @@
 """Precomputed macro solutions for the F2L middle-edge subproblem.
 
-The four middle-layer (E-slice) edges are solved last in F2L, so their macros must preserve both the
+The four middle-layer edges are solved last in F2L, so their macros must preserve both the
 cross and the white corners - the entire top layer. The shortest such cross-and-corner-preserving
 move sequences are 6 moves long; together with the free bottom-layer turns (D, D', D2), which
 reposition any middle edge displaced into the bottom, they span all 26,880 reachable middle-edge
-states. We BFS backward from solved over that space and store, per state, the macro that steps one
-closer to solved, so solveF2LMiddlePieces becomes a sequence of table lookups.
+states. We search backward from solved over that space, weighting each macro by its move count, and
+store per state the macro that steps one closer to solved.
 
-The table (middle_table.bin) is generated offline by buildTable (run this module as a script)
-and loaded at import.
+Running this as a script writes middle_table.bin (the search result, one macro per state) and
+middle_paths.bin (the composed whole solutions solveF2LMiddlePieces uses). See cross_table.py for
+what separates the two.
 """
 
 import heapq
@@ -94,9 +95,8 @@ def encodeMiddles(state: str) -> int:
 def buildTable() -> bytearray:
     """Builds the middle-edge macro table by move-weighted (Dijkstra) search backwards from solved.
 
-    Each macro edge is weighted by its move length, so every reachable middle-edge state stores the
-    macro on a *move-shortest* path to solved (its inverse is applied when solving); the solved state
-    and unreachable indices keep NO_MACRO.
+    Each macro edge is weighted by its move length, so every reachable middle-edge state stores a
+    macro on a move-shortest path to solved. The solved state and unreachable indices keep NO_MACRO.
 
     Returns:
         bytearray: The macro table of length TABLE_SIZE.

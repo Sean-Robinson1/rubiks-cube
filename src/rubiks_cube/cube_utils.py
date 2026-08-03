@@ -4,8 +4,12 @@ from collections import deque
 
 from .constants import STRING_ROTATION_MAPPINGS
 
-# precompute one itemgetter per rotation: itemgetter(*mapping)(mask) pulls all 54 permuted
-# squares in a single C-level call, which is markedly faster than a Python-level comprehension
+# every rotation is a fixed reshuffle of the 54 squares: mapping[i] is the square of the old state
+# that ends up at position i, so rotating is just result[i] = mask[mapping[i]]. operator.itemgetter
+# bakes a list of indices into a reusable callable that looks them all up at once and hands back a
+# tuple - itemgetter(2, 0, 1)("abc") "abc" gives ("c", "a", "b"). Building one per rotation up
+# front means rotate() fetches all 54 squares in a single C-level call and joins the tuple back
+# into a string, rather than indexing the mask 54 times in Python on every move.
 _ROTATION_GETTERS = {rotation: operator.itemgetter(*mapping) for rotation, mapping in STRING_ROTATION_MAPPINGS.items()}
 
 
@@ -60,6 +64,10 @@ _sparseMaskCache: dict[str, tuple[tuple[int, str], ...]] = {}
 def _sparseMask(mask: str) -> tuple[tuple[int, str], ...]:
     """Returns the (index, expected character) pairs for a mask's non-dot squares.
 
+    I used to write masks as "WW...BGR ...", with dots being wildcards. That stores a load of
+    information I don't care about, so now I keep the index of each facelet I do care about
+    and its expected colour, and only check those.
+
     The result is cached, as the same masks are checked many times during solving.
 
     Args:
@@ -92,7 +100,7 @@ def checkMask(mask: str, state: str) -> bool:
 
 
 def sparsifyMasks(masks) -> list[tuple[tuple[int, str], ...]]:
-    """Decomposes a collection of masks into their non-dot (index, character) pairs.
+    """Decomposes a collection of masks into their sparse (index, character) pairs.
 
     Precomputing this once lets a repeated search test many states against the same masks
     without re-looking-up each mask's sparse form on every check.
@@ -151,16 +159,12 @@ _OPPOSITE_FACE = {"U": "D", "D": "U", "F": "B", "B": "F", "L": "R", "R": "L"}
 
 
 def optimiseMoves(moves: list[str]) -> list[str]:
-    """Reduces a move list to a shorter one with the identical net effect on the cube.
+    """Reduces a move list to a shorter one with the same net effect on the cube.
 
-    Consecutive quarter-turns of the same face combine, so the list is folded with a stack of
-    [face, net] runs, net being that face's clockwise quarter-turns mod 4. A run that reaches a
-    full turn is the identity and is dropped, which re-exposes the run beneath it to the next
-    move.
-
-    A move also combines with its own face through a run of the opposite face, since opposite
-    faces commute, which reduces sequences like R L Ri to L. Adjacent runs never share a face, so
-    there is at most one such run to look past, and one left-to-right pass reduces the list fully.
+    The list is folded into a stack of [face, net] runs, net being that face's clockwise
+    quarter-turns mod 4. A run reaching a full turn is dropped, which re-exposes the run beneath
+    it. Opposite faces commute, so a move can also join its own run through a single run of the
+    opposite face, which reduces R L Ri to L.
 
     Args:
         moves (list[str]): The moves to optimise, each a face UDFBLR with an optional trailing
@@ -175,8 +179,7 @@ def optimiseMoves(moves: list[str]) -> list[str]:
         face = move[0]
         turn = 3 if move.endswith("i") else 1  # anticlockwise is -1, i.e. 3 clockwise turns (mod 4)
 
-        # this move's own run is either on top, or one below a run of the opposite face that it
-        # commutes with and can be moved past
+        # this move's own run is either on top, or one below a run of the opposite face
         if stack and stack[-1][0] == face:
             index = len(stack) - 1
         elif len(stack) > 1 and stack[-1][0] == _OPPOSITE_FACE[face] and stack[-2][0] == face:
@@ -195,7 +198,7 @@ def optimiseMoves(moves: list[str]) -> list[str]:
             reduced.append(face)
         elif net == 3:
             reduced.append(face + "i")
-        else:  # net == 2: a 180-degree turn, written as two quarter-turns
+        else:  # a 180-degree turn
             reduced.append(face)
             reduced.append(face)
     return reduced

@@ -1,13 +1,16 @@
 """Precomputed optimal solutions for the white-cross subproblem.
 
-The white cross is only four edges, so its state space is tiny: the four distinguishable white
-edges sit in 4 of the 12 edge slots, each with one of two orientations, giving just
-12*11*10*9 * 2**4 = 190,080 reachable states. We encode each state as a small integer and store,
-for every state, the index of the next move on an *optimal* path to the solved cross. solveCross
-then becomes a short sequence of O(1) table lookups instead of a depth-5 search.
+The white cross is only four edges, so its state space is tiny (~12*11*10*9 * 2**4 = 190,080
+reachable states). We encode each state as a small integer and store the index of the next move on
+an optimal path to the solved cross, in place of what used to be a depth-5 search.
 
-The table (cross_table.bin) is generated offline by buildTable (run this module as a script)
-and loaded at import.
+Running this module as a script generates two files, and the other three stage tables are split the
+same way. cross_table.bin is the search result itself: one byte per state, naming the single move
+that steps that state closer to solved, so solving from it alone would mean a loop - look up, apply
+one move, re-encode, repeat. cross_paths.bin walks those single steps all the way to solved for
+every state and composes each whole walk into one permutation plus its move labels. That is what
+solveCross uses, and why a stage costs one lookup rather than a loop. The table is still shipped
+because the paths are rebuilt from it without redoing the search.
 """
 
 import os
@@ -35,9 +38,15 @@ _TABLE_PATH = os.path.join(os.path.dirname(__file__), "data", "cross_table.bin")
 def encodeCross(state: str) -> int:
     """Encodes the white-cross configuration of a cube state as an integer in [0, 24**4).
 
-    Each of the four white edges contributes slot * 2 + orientation (0-23); these four values
-    are packed as base-24 digits in a fixed colour order, so equal cross configurations - regardless
-    of the rest of the cube - map to the same integer.
+    For each white edge, we assign that base-24 encoded digit to be the edges slot,
+    which one of the 12 possible edge locations it can be, * 2 + the orientation,
+    (if the white is the first one).
+
+    Since there are 12 slots and orientation is a boolean, we get a max value of:
+
+        slot * 2 + orientiation = 11 * 2 + 1 = 23
+
+    (given 0 indexing). This allows us to represnt the state as a base 24 number.  
 
     Args:
         state (str): The 54-character cube state string.

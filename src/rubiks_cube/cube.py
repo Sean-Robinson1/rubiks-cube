@@ -419,6 +419,9 @@ class Cube:
         entry = CROSS_PATHS.get(encodeCross(state))
         if entry is not None:
             permutation, labels = entry
+            # permutation is the operations required to update the state to the
+            # solved state in one move (rather than executing each of the moves,
+            # stored in `labels` one by one.)
             state = operator.itemgetter(*permutation)(state)
             moves += labels
         entry = CORNER_PATHS.get(encodeCorners(state))
@@ -458,7 +461,7 @@ class Cube:
         """Solves the white cross on the top of the cube.
 
         Looks up the whole solution for the current cross configuration in a precomputed table and
-        applies it as a single permutation - one lookup, one gather, no search.
+        applies it as a single permutation.
         """
         self._applyPath(CROSS_PATHS, encodeCross(self.state))
 
@@ -481,8 +484,9 @@ class Cube:
     def solveLastLayer(self) -> None:
         """Solves the entire last layer (the yellow face) in one table-driven pass.
 
-        One lookup returns the entire F2L-neutral solution for the current last-layer configuration,
-        applied as a single permutation, finishing the cube without disturbing the first two layers.
+        One lookup returns the entire F2L-neutral solution (preserves existing solved state)
+        for the current last-layer configuration, applied as a single permutation,
+        finishing the cube without disturbing the first two layers.
         """
         self._applyPath(LAST_LAYER_PATHS, LAST_LAYER_KEY(self.state))
 

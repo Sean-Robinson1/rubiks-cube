@@ -1,15 +1,16 @@
 """Precomputed optimal-macro solutions for the F2L white-corner subproblem.
 
 Unlike the cross, the corners cannot be solved independently: every corner insertion must leave the
-already-solved cross intact. So instead of single moves, we search over a set of *cross-preserving
-macros* - short move sequences that return the cross to solved (verified: they only permute corners
+already-solved cross intact. So instead of single moves, we search over a set of cross-preserving
+macros - short move sequences that return the cross to solved (verified: they only permute corners
 and non-cross edges). Because every macro preserves the cross, the cross drops out of the state and
-we are left with just the 4 white corners: 8 slots * 3 orientations each, 12*11*10*9 * ... in practice
-136,080 reachable states. We BFS backward from solved over that space and store, per state, the macro
-that steps one closer to solved, so solveF2LCorners becomes a short sequence of table lookups.
+we are left with just the 4 white corners: 8 * 7 * 6 * 5 placements times 3**4 orientations, so
+136,080 reachable states. We search backward from solved over that space, weighting each macro by
+its move count, and store per state the macro that steps one closer to solved.
 
-The table (corner_table.bin) is generated offline by buildTable (run this module as a script)
-and loaded at import.
+Running this as a script writes corner_table.bin (the search result, one macro per state) and
+corner_paths.bin (the composed whole solutions solveF2LCorners uses). See cross_table.py for what
+separates the two.
 """
 
 import heapq
@@ -104,10 +105,9 @@ def encodeCorners(state: str) -> int:
 def buildTable() -> bytearray:
     """Builds the corner macro table by move-weighted (Dijkstra) search backwards from solved.
 
-    Each macro edge is weighted by its move length, so every reachable corner state stores the macro
-    on a *move-shortest* path to solved (its inverse is applied when solving) - placing the corners in
-    as few moves as the macro set allows, rather than in the fewest macros. The solved state and
-    unreachable indices keep NO_MACRO.
+    Each macro edge is weighted by its move length, so every reachable corner state stores a macro
+    on a move-shortest path to solved, placing the corners in as few moves as the macro set allows
+    rather than in the fewest macros. The solved state and unreachable indices keep NO_MACRO.
 
     Returns:
         bytearray: The macro table of length TABLE_SIZE.
@@ -130,8 +130,8 @@ def buildTable() -> bytearray:
             newIdx = encodeCorners(newState)
             newDistance = dist + len(sequence)
             if newDistance < distance[newIdx]:
-                # reached newIdx from idx via this macro; stepping back towards solved applies its
-                # inverse, so store the macro index (INVERSE_MACROS[macro] is used when solving)
+                # stepping back towards solved applies the macro's inverse, so store the macro
+                # index and look it up in INVERSE_MACROS when solving
                 distance[newIdx] = newDistance
                 table[newIdx] = macro
                 reps[newIdx] = newState

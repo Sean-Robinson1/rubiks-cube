@@ -4,16 +4,18 @@ Once the F2L is solved, the whole last layer - its 4 corners and 4 edges - is fi
 table-driven pass, replacing the previous four looping beginner-method stages. The macros are short
 move sequences that are strictly F2L-neutral: applied to a cube of 54 distinct labels, every one of
 the 33 non-last-layer stickers returns to its exact home (see _strictNeutral). A permutation that
-fixes those positions on distinct labels fixes them from any state, so no macro can ever disturb the
-solved F2L - this is what makes the pass provably safe.
+fixes those positions on distinct labels fixes them from any state, so no macro can disturb the
+solved F2L.
 
 Given a solved F2L the last layer has exactly 4! * 3^3 * 4! * 2^3 / 2 = 62,208 reachable states
 (the /2 is the corner/edge permutation-parity constraint). Twelve strictly-neutral macros plus the
-free bottom turns (D, D', D2) span all of them, so we BFS backward from solved and store, per state,
-the macro that steps one closer; solveLastLayer becomes a sequence of O(1) table lookups.
+free bottom turns (D, D', D2) span all of them, so we search backward from solved, weighting each
+macro by its move count, and store per state the macro that steps one closer.
 
-The table (last_layer_table.bin) is generated offline by buildTable (run this module as a
-script) and loaded at import.
+Running this as a script writes last_layer_table.bin (the search result, one macro per state) and
+last_layer_paths.bin (the composed whole solutions solveLastLayer uses). See cross_table.py for what
+separates the two. The paths here are keyed by the 20 last-layer stickers rather than the encode
+index, so solving needs no encode step at all.
 """
 
 import heapq
@@ -65,7 +67,7 @@ def _conjugate(face: str, tokens: list[str]) -> list[str]:
 
 # base macros, each strictly F2L-neutral: edge orientation, an edge 3-cycle, a corner 3-cycle, and two
 # corner-twist commutators. Conjugated onto the four side faces they cover every kind of last-layer
-# change; the strict-neutrality filter below is what guarantees safety, so this list is free to grow.
+# change. Anything added here gets filtered below, so it is safe to add more.
 _BASE_MACROS = [
     ["F", "L", "D", "L'", "D'", "F'"],
     ["L", "D", "L'", "D", "L", "D", "D", "L'", "D"],
@@ -76,7 +78,7 @@ _BASE_MACROS = [
 _FACES = ["R", "B", "G", "O"]
 
 # build the macro set: every strictly-neutral face-variant of every base (de-duplicated, order kept)
-# plus the free bottom turns. Filtering here makes F2L-safety a self-enforcing invariant of the table.
+# plus the free bottom turns. Filtering here keeps the whole table F2L-safe by construction.
 MACROS: list[list[str]] = []
 _seenMacros = set()
 for _base in _BASE_MACROS:
@@ -164,9 +166,22 @@ for _slot in range(4):
 def encodeLastLayer(state: str) -> int:
     """Encodes the last layer of a cube state as a dense integer in [0, TABLE_SIZE).
 
-    The layer is fully described by which piece sits in each of the 4 corner and 4 edge slots and how
-    it is oriented, so distinct last layers get distinct indices. Valid once the F2L is solved, which
-    confines the last-layer pieces to these eight slots.
+    All eight last-layer pieces are tracked at once, so rather than one slot * n + orientation
+    digit per piece, four separate values are combined:
+
+        corner permutation   0-23   which corner sits in each of the 4 slots, as a Lehmer rank
+        corner orientation   0-80   which of its 3 stickers is yellow, per corner (base 3)
+        edge permutation     0-23   which edge sits in each of the 4 slots, as a Lehmer rank
+        edge orientation     0-15   whether each edge is flipped, per edge (base 2)
+
+    packed as ((cornerPerm * 81 + cornerOri) * 24 + edgePerm) * 16 + edgeOri, so the index runs to
+    24 * 81 * 24 * 16 = 746,496. Only 62,208 of those are actually reachable, since the cube's
+    global invariants (corner twists summing to 0 mod 3, edge flips to 0 mod 2, and matching
+    permutation parity) rule out 11 of every 12; the rest keep the NO_MACRO sentinel.
+
+    The layer is fully described by which piece sits in each slot and how it is oriented, so
+    distinct last layers get distinct indices. Valid once the F2L is solved, which confines the
+    last-layer pieces to these eight slots.
 
     Args:
         state (str): The 54-character cube state string.
@@ -197,9 +212,8 @@ def encodeLastLayer(state: str) -> int:
 def buildTable() -> bytearray:
     """Builds the last-layer macro table by move-weighted (Dijkstra) search backwards from solved.
 
-    Each macro edge is weighted by its move length, so every reachable last-layer state stores the
-    macro on a *move-shortest* path to solved (its inverse is applied when solving); the solved state
-    and unreachable indices keep NO_MACRO.
+    Each macro edge is weighted by its move length, so every reachable last-layer state stores a
+    macro on a move-shortest path to solved. The solved state and unreachable indices keep NO_MACRO.
 
     Returns:
         bytearray: The macro table of length TABLE_SIZE.
@@ -222,8 +236,8 @@ def buildTable() -> bytearray:
             newIdx = encodeLastLayer(newState)
             newDistance = dist + len(sequence)
             if newDistance < distance[newIdx]:
-                # reached newIdx from idx via this macro; stepping back towards solved applies its
-                # inverse, so store the macro index (INVERSE_MACROS[macro] is used when solving)
+                # stepping back towards solved applies the macro's inverse, so store the macro
+                # index and look it up in INVERSE_MACROS when solving
                 distance[newIdx] = newDistance
                 table[newIdx] = macro
                 reps[newIdx] = newState
