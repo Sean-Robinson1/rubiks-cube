@@ -93,6 +93,30 @@ class TestCubeNonSolver(unittest.TestCase):
             reduced.executeSequence("".join(optimised))
             self.assertEqual(str(original), str(reduced))
 
+    def test_wideKeyEncodeMatchesPerSlot(self):
+        # the grouped wide-key encode must equal an independent slot-by-slot summation of the same
+        # per-slot contributions, over real corner-stage and middle-stage states
+        from rubiks_cube.corner_table import _CORNER_SLOT_LUT, _CORNER_STICKERS, encodeCorners
+        from rubiks_cube.middle_table import _MIDDLE_SLOT_LUT, _MIDDLE_STICKERS, encodeMiddles
+
+        def refCorners(state):
+            c = _CORNER_STICKERS(state)
+            return sum(_CORNER_SLOT_LUT[s].get((c[s * 3], c[s * 3 + 1], c[s * 3 + 2]), 0) for s in range(8))
+
+        def refMiddles(state):
+            m = _MIDDLE_STICKERS(state)
+            return sum(_MIDDLE_SLOT_LUT[s].get((m[s * 2], m[s * 2 + 1]), 0) for s in range(8))
+
+        random.seed(0)
+        cube = Cube()
+        for _ in range(3000):
+            cube.randomise()
+            cube.movesMade = []
+            cube.solveCross()
+            self.assertEqual(encodeCorners(cube.state), refCorners(cube.state))
+            cube.solveF2LCorners()
+            self.assertEqual(encodeMiddles(cube.state), refMiddles(cube.state))
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -14,11 +14,12 @@ separates the two.
 """
 
 import heapq
+import itertools
 import operator
 import os
 
 from .constants import SOLVED_MASK
-from .cube_utils import applyMoves, buildPathTable, deserialisePaths, invertMove, serialisePaths
+from .cube_utils import applyMoves, buildGroupLUT, buildPathTable, deserialisePaths, invertMove, serialisePaths
 
 # The 8 corner cubies as (sticker index, ...) triples, derived from the rotation mappings the same
 # way as the edges. The first four (those with a sticker on the white face, indices 0-8) are the
@@ -77,8 +78,16 @@ for _slot in range(len(CORNERS)):
                 _lut[(_key[0], _key[1], _key[2])] = (_slot * 3 + _w) * _POW24[_bucket]
     _CORNER_SLOT_LUT.append(_lut)
 
-# tuple so encode can walk the lookups instead of indexing one out per slot
-_CORNER_SLOT_LUTS = tuple(_CORNER_SLOT_LUT)
+# wide-key encode: the index is a sum of independent per-slot contributions, so the combined
+# contribution of a pair of slots is precomputed once, keyed by the six stickers they show together.
+# encodeCorners then sums four wide lookups with no Python loop, for the identical index.
+# _CORNER_SLOT_KEYS is the exhaustive set of triples a corner slot can display: every ordering of each
+# corner cubie's three colours - a superset of its three physical orientations, so no key is missed
+# (impossible orderings never occur, so their group entries are harmless). A yellow corner is absent
+# from _CORNER_SLOT_LUT and contributes 0, exactly as the per-slot loop skipped it.
+_CORNER_SLOT_KEYS = {perm for _tri in CORNERS
+                     for perm in itertools.permutations(SOLVED_MASK[p] for p in _tri)}
+_CORNER_GROUP_LUT = buildGroupLUT(_CORNER_SLOT_LUT, _CORNER_SLOT_KEYS)
 
 
 def encodeCorners(state: str) -> int:
@@ -86,7 +95,7 @@ def encodeCorners(state: str) -> int:
 
     Each white corner contributes slot * 3 + orientation (0-23), packed as base-24 digits in a
     fixed colour order, so equal corner configurations map to the same integer regardless of the
-    rest of the cube.
+    rest of the cube. Computed as four wide-key lookups (one per slot pair) summed together.
 
     Args:
         state (str): The 54-character cube state string.
@@ -94,16 +103,9 @@ def encodeCorners(state: str) -> int:
     Returns:
         int: The encoded white-corner state.
     """
-    cols = _CORNER_STICKERS(state)
-    idx = 0
-    i = 0
-    for lut in _CORNER_SLOT_LUTS:
-        contribution = lut.get((cols[i], cols[i + 1], cols[i + 2]))
-        if contribution is not None:
-            idx += contribution
-        i += 3
-
-    return idx
+    c = _CORNER_STICKERS(state)
+    return (_CORNER_GROUP_LUT[0].get(c[0:6], 0) + _CORNER_GROUP_LUT[1].get(c[6:12], 0)
+            + _CORNER_GROUP_LUT[2].get(c[12:18], 0) + _CORNER_GROUP_LUT[3].get(c[18:24], 0))
 
 
 def buildTable() -> bytearray:

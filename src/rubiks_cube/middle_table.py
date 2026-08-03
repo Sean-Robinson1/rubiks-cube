@@ -13,12 +13,13 @@ what separates the two.
 """
 
 import heapq
+import itertools
 import operator
 import os
 
 from .constants import SOLVED_MASK
 from .cross_table import EDGES
-from .cube_utils import applyMoves, buildPathTable, deserialisePaths, invertMove, serialisePaths
+from .cube_utils import applyMoves, buildGroupLUT, buildPathTable, deserialisePaths, invertMove, serialisePaths
 
 # the eight non-white edge slots (EDGES without the four white ones); the four middle edges live
 # among these during solving, sharing them with the not-yet-solved bottom (yellow) edges
@@ -68,8 +69,15 @@ for _slot in range(len(NONWHITE_SLOTS)):
         _lut[(_y, _x)] = (_slot * 2 + (0 if _y < _x else 1)) * _POW16[_bucket]
     _MIDDLE_SLOT_LUT.append(_lut)
 
-# see corner_table.py, same reason
-_MIDDLE_SLOT_LUTS = tuple(_MIDDLE_SLOT_LUT)
+# wide-key encode: the index is a sum of independent per-slot contributions, so the combined
+# contribution of a pair of slots is precomputed once, keyed by the four stickers they show together.
+# encodeMiddles then sums four wide lookups with no Python loop, for the identical index.
+# _MIDDLE_SLOT_KEYS is the exhaustive set of pairs a slot can display: both orders of each non-white
+# edge's two colours (its two physical orientations). A yellow edge is absent from _MIDDLE_SLOT_LUT
+# and contributes 0, exactly as the per-slot loop skipped it.
+_MIDDLE_SLOT_KEYS = {perm for _a, _b in NONWHITE_SLOTS
+                     for perm in itertools.permutations((SOLVED_MASK[_a], SOLVED_MASK[_b]))}
+_MIDDLE_GROUP_LUT = buildGroupLUT(_MIDDLE_SLOT_LUT, _MIDDLE_SLOT_KEYS)
 
 
 def encodeMiddles(state: str) -> int:
@@ -77,7 +85,7 @@ def encodeMiddles(state: str) -> int:
 
     Each middle edge contributes slot * 2 + orientation (0-15), packed as base-16 digits in a
     fixed colour order. Only valid once the cross and corners are solved, which confines the middle
-    edges to the eight non-white slots.
+    edges to the eight non-white slots. Computed as four wide-key lookups (one per slot pair) summed.
 
     Args:
         state (str): The 54-character cube state string.
@@ -85,16 +93,9 @@ def encodeMiddles(state: str) -> int:
     Returns:
         int: The encoded middle-edge state.
     """
-    stickers = _MIDDLE_STICKERS(state)
-    idx = 0
-    i = 0
-    for lut in _MIDDLE_SLOT_LUTS:
-        contribution = lut.get((stickers[i], stickers[i + 1]))
-        if contribution is not None:
-            idx += contribution
-        i += 2
-
-    return idx
+    m = _MIDDLE_STICKERS(state)
+    return (_MIDDLE_GROUP_LUT[0].get(m[0:4], 0) + _MIDDLE_GROUP_LUT[1].get(m[4:8], 0)
+            + _MIDDLE_GROUP_LUT[2].get(m[8:12], 0) + _MIDDLE_GROUP_LUT[3].get(m[12:16], 0))
 
 
 def buildTable() -> bytearray:

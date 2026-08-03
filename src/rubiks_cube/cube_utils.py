@@ -1,3 +1,4 @@
+import itertools
 import operator
 import struct
 from collections import deque
@@ -202,6 +203,38 @@ def optimiseMoves(moves: list[str]) -> list[str]:
             reduced.append(face)
             reduced.append(face)
     return reduced
+
+
+def buildGroupLUT(slotLUT: list, slotKeys, groupSize: int = 2) -> list:
+    """Merges adjacent per-slot contribution tables into wider-key lookup tables.
+
+    An encode index built as a sum of independent per-slot contributions (each already folded to
+    include its place value) can be computed with fewer, wider dictionary lookups: the combined
+    contribution of a group of ``groupSize`` adjacent slots is precomputed once, keyed by the
+    concatenation of those slots' stickers. The encode then does one lookup per group instead of one
+    per slot, with no Python loop, for the identical index.
+
+    ``slotKeys`` must be the *exhaustive* set of sticker tuples a single slot can show, so every key a
+    real state can produce is present in the result; a slot holding an untracked piece is simply
+    absent from ``slotLUT`` and contributes 0, exactly as the per-slot encode skipped it.
+
+    Args:
+        slotLUT (list): One dict per slot, mapping that slot's sticker tuple to its contribution.
+        slotKeys: The exhaustive set of sticker tuples any one slot can display.
+        groupSize (int): How many adjacent slots to merge per group (default 2; must divide the slot count).
+
+    Returns:
+        list: One combined-contribution dict per group, keyed by the group's concatenated stickers.
+    """
+    groups = []
+    for start in range(0, len(slotLUT), groupSize):
+        members = slotLUT[start:start + groupSize]
+        combined = {}
+        for combo in itertools.product(slotKeys, repeat=len(members)):
+            key = tuple(itertools.chain.from_iterable(combo))
+            combined[key] = sum(members[i].get(combo[i], 0) for i in range(len(members)))
+        groups.append(combined)
+    return groups
 
 
 # Full-solution ("path") tables: for each reachable state of a stage, the whole solution stored as
