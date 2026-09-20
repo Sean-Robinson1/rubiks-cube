@@ -164,11 +164,11 @@ def buildPaths(table=None) -> dict:
                           lambda macro: inverseMacros[macro])
 
 
-def _loadPaths() -> dict | None:
+def _loadPaths() -> list | None:
     """Loads the packed corner paths, or None if the file isn't there yet."""
     try:
         with open(_PATHS_PATH, "rb") as handle:
-            return deserialisePaths(handle.read())
+            return deserialisePaths(handle.read(), TABLE_SIZE)
     except FileNotFoundError:
         return None
 

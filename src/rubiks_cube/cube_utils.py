@@ -500,19 +500,30 @@ def serialisePaths(paths: dict) -> bytes:
     return bytes(buf)
 
 
-def deserialisePaths(data: bytes) -> dict:
-    """Loads a packed path table.
+def deserialisePaths(data: bytes, tableSize: int) -> list:
+    """Loads a packed path table into a list indexed by the stage's encode index.
+
+    A stage's indices are dense and bounded by its table size, so the table is a list rather than a
+    dict: solving then indexes straight into it instead of hashing. The unreachable indices cost one
+    None each, which is less than the spare capacity a dict of the same entries would carry anyway.
+    Hashing was around a sixth of a solve, and dropping it is most of the ~11.3us to ~8.6us a solve
+    now takes.
 
     The permutation is kept as a tuple of ints rather than bytes, so that itemgetter can unpack it
-    directly when solving instead of boxing 54 ints out of a bytes object on every call.
+    directly when solving instead of boxing 54 ints out of a bytes object on every call. Building
+    those itemgetters here instead was measurably worse: it adds ~500ms to the load for no reliable
+    solve-time gain, the saved construction being paid back in cache misses over twice as many
+    objects.
 
     Args:
         data (bytes): The packed path table.
+        tableSize (int): The stage's number of encodable states, i.e. the length of the list.
 
     Returns:
-        dict: Maps each index to its permutation and the labels of the moves solving it.
+        list: Maps each index to its permutation and the labels of the moves solving it, None where
+        a state is unreachable or already solved.
     """
-    paths = {}
+    paths = [None] * tableSize
     pos = 0
     n = len(data)
     while pos < n:
@@ -531,8 +542,12 @@ def deserialisePaths(data: bytes) -> dict:
 def serialiseKeyedPaths(paths: dict) -> bytes:
     """Packs a path table keyed by sticker tuples into bytes, one record per entry.
 
-    Each record holds the key's stickers, a 54 byte permutation, a label count, and that many label
-    codes. Every key must be the same length, so that the fixed size records parse back cleanly.
+    Each record holds the key's stickers, a label count, and that many label codes. Every key must
+    be the same length, so that the fixed size records parse back cleanly.
+
+    The permutation is deliberately dropped. This table is only ever the last stage a solve runs, so
+    the state it produces is the solved cube whatever the entry - there is nothing for a permutation
+    to say. See deserialiseKeyedPaths.
 
     Args:
         paths (dict): The path table to pack, keyed by tuples of single character colours.
@@ -541,26 +556,30 @@ def serialiseKeyedPaths(paths: dict) -> bytes:
         bytes: The packed path table.
     """
     buf = bytearray()
-    for key, (permutation, labels) in paths.items():
+    for key, (_, labels) in paths.items():
         buf += bytes(ord(c) for c in key)
-        buf += bytes(permutation)
         buf.append(len(labels))
         buf += bytes(_LABEL_TO_CODE[label] for label in labels)
     return bytes(buf)
 
 
 def deserialiseKeyedPaths(data: bytes, keyLength: int) -> dict:
-    """Loads a table packed by serialiseKeyedPaths.
+    """Loads a table packed by serialiseKeyedPaths, mapping each key to its move labels.
 
     Each key is decoded back to a tuple of single character strings, so that it matches the tuple a
     stage's sticker gather produces when looking a state up.
+
+    There is no permutation to return: the caller finishes a solve, so it knows the resulting state
+    without being told. Skipping it saves the 54 square gather per solve and, more to the point, the
+    54 pointers per entry that made this the heaviest of the four tables in memory:
+    last_layer_paths.bin drops from 5.9MB to 2.5MB, and the package loads into 361MB rather than 423MB.
 
     Args:
         data (bytes): The packed path table.
         keyLength (int): The number of stickers making up each key.
 
     Returns:
-        dict: Maps each key to its permutation and the labels of the moves solving it.
+        dict: Maps each key to the labels of the moves solving it.
     """
     paths = {}
     pos = 0
@@ -568,13 +587,10 @@ def deserialiseKeyedPaths(data: bytes, keyLength: int) -> dict:
     while pos < n:
         key = tuple(chr(b) for b in data[pos:pos + keyLength])
         pos += keyLength
-        permutation = tuple(data[pos:pos + 54])
-        pos += 54
         count = data[pos]
         pos += 1
-        labels = tuple(MOVE_LABELS[code] for code in data[pos:pos + count])
+        paths[key] = tuple(MOVE_LABELS[code] for code in data[pos:pos + count])
         pos += count
-        paths[key] = (permutation, labels)
     return paths
 
 

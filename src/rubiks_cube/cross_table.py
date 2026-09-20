@@ -125,11 +125,11 @@ def buildPaths(table: bytearray = None) -> dict:
                           lambda move: POSSIBLE_ROTATIONS[move])
 
 
-def _loadPaths() -> dict | None:
+def _loadPaths() -> list | None:
     """Reads back the packed cross paths, or None if they haven't been built yet."""
     try:
         with open(_PATHS_PATH, "rb") as handle:
-            return deserialisePaths(handle.read())
+            return deserialisePaths(handle.read(), TABLE_SIZE)
     except FileNotFoundError:
         return None
 

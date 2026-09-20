@@ -274,7 +274,11 @@ def buildPaths(table=None) -> dict:
 
 
 def _loadPaths() -> dict | None:
-    """Loads the packed last-layer paths, or None if the file is missing."""
+    """Loads the packed last-layer paths, or None if the file is missing.
+
+    What comes back maps each sticker key straight to its move labels - the stage's solutions carry
+    no permutation, since finishing the last layer finishes the cube.
+    """
     try:
         with open(_PATHS_PATH, "rb") as handle:
             return deserialiseKeyedPaths(handle.read(), _LL_KEY_LENGTH)
