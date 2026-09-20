@@ -535,21 +535,21 @@ class Cube:
         for _ in range(numSolves):
             self.randomise()
             self.movesMade = []
-            startTime = time.time()
+            startTime = time.perf_counter()
             self.solveCross()
-            crossTime = time.time()
+            crossTime = time.perf_counter()
             totalCrossTime += crossTime - startTime
             maxCrossTime = max(maxCrossTime, crossTime - startTime)
             self.solveF2LCorners()
-            cornersTime = time.time()
+            cornersTime = time.perf_counter()
             totalCornersTime += cornersTime - crossTime
             maxCornersTime = max(maxCornersTime, cornersTime - crossTime)
             self.solveF2LMiddlePieces()
-            middlesTime = time.time()
+            middlesTime = time.perf_counter()
             totalMiddlesTime += middlesTime - cornersTime
             maxMiddlesTime = max(maxMiddlesTime, middlesTime - cornersTime)
             self.solveLastLayer()
-            lastLayerTime = time.time()
+            lastLayerTime = time.perf_counter()
             totalLastLayerTime += lastLayerTime - middlesTime
             maxLastLayerTime = max(maxLastLayerTime, lastLayerTime - middlesTime)
 
