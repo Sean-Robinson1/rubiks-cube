@@ -77,6 +77,9 @@ for _slot in range(len(CORNERS)):
                 _lut[(_key[0], _key[1], _key[2])] = (_slot * 3 + _w) * _POW24[_bucket]
     _CORNER_SLOT_LUT.append(_lut)
 
+# tuple so encode can walk the lookups instead of indexing one out per slot
+_CORNER_SLOT_LUTS = tuple(_CORNER_SLOT_LUT)
+
 
 def encodeCorners(state: str) -> int:
     """Encodes the four white corners of a cube state as an integer in [0, 24**4).
@@ -93,11 +96,12 @@ def encodeCorners(state: str) -> int:
     """
     cols = _CORNER_STICKERS(state)
     idx = 0
-    for slot in range(8):
-        i = slot * 3
-        contribution = _CORNER_SLOT_LUT[slot].get((cols[i], cols[i + 1], cols[i + 2]))
+    i = 0
+    for lut in _CORNER_SLOT_LUTS:
+        contribution = lut.get((cols[i], cols[i + 1], cols[i + 2]))
         if contribution is not None:
             idx += contribution
+        i += 3
 
     return idx
 
