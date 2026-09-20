@@ -68,6 +68,9 @@ for _slot in range(len(NONWHITE_SLOTS)):
         _lut[(_y, _x)] = (_slot * 2 + (0 if _y < _x else 1)) * _POW16[_bucket]
     _MIDDLE_SLOT_LUT.append(_lut)
 
+# see corner_table.py, same reason
+_MIDDLE_SLOT_LUTS = tuple(_MIDDLE_SLOT_LUT)
+
 
 def encodeMiddles(state: str) -> int:
     """Encodes the four middle (E-slice) edges of a cube state as an integer in [0, 16**4).
@@ -84,10 +87,12 @@ def encodeMiddles(state: str) -> int:
     """
     stickers = _MIDDLE_STICKERS(state)
     idx = 0
-    for slot in range(8):
-        contribution = _MIDDLE_SLOT_LUT[slot].get((stickers[slot * 2], stickers[slot * 2 + 1]))
+    i = 0
+    for lut in _MIDDLE_SLOT_LUTS:
+        contribution = lut.get((stickers[i], stickers[i + 1]))
         if contribution is not None:
             idx += contribution
+        i += 2
 
     return idx
 
