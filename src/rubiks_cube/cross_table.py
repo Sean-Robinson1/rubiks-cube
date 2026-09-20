@@ -28,6 +28,10 @@ EDGES = [(1, 37), (3, 10), (5, 28), (7, 19), (12, 41), (14, 21), (16, 48), (23, 
 # the four non-white colours of the cross edges, in a fixed order used to pack the encoding
 CROSS_COLOURS = "GRBO"
 
+# paired up once so encode isn't rebuilding it every call. an itemgetter gather like the other
+# tables use is slower here, cross only looks at 4 of the 12 edges
+_SLOT_EDGES = tuple(enumerate(EDGES))
+
 # number of encodable states, and the sentinel stored for the solved state / any unreachable index
 TABLE_SIZE = 24**4
 NO_MOVE = 255
@@ -55,16 +59,14 @@ def encodeCross(state: str) -> int:
         int: The encoded white-cross state.
     """
     slotOri = {}
-    for slot, (a, b) in enumerate(EDGES):
+    for slot, (a, b) in _SLOT_EDGES:
         if state[a] == "W":
             slotOri[state[b]] = slot * 2
         elif state[b] == "W":
             slotOri[state[a]] = slot * 2 + 1
 
-    idx = 0
-    for colour in CROSS_COLOURS:
-        idx = idx * 24 + slotOri[colour]
-    return idx
+    # base 24 over CROSS_COLOURS, unrolled
+    return slotOri["G"] * 13824 + slotOri["R"] * 576 + slotOri["B"] * 24 + slotOri["O"]
 
 
 def buildTable() -> bytearray:
