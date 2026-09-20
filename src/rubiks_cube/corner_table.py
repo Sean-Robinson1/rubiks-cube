@@ -2,53 +2,77 @@
 
 Unlike the cross, the corners cannot be solved independently: every corner insertion must leave the
 already-solved cross intact. So instead of single moves, we search over a set of cross-preserving
-macros - short move sequences that return the cross to solved (verified: they only permute corners
-and non-cross edges). Because every macro preserves the cross, the cross drops out of the state and
-we are left with just the 4 white corners: 8 * 7 * 6 * 5 placements times 3**4 orientations, so
-136,080 reachable states. We search backward from solved over that space, weighting each macro by
-its move count, and store per state the macro that steps one closer to solved.
+macros - move sequences that return the cross to solved, enumerated rather than written out by hand
+(see macro_enumeration.py). Because every macro preserves the cross, the cross drops out of the state
+and we are left with just the 4 white corners: 8 * 7 * 6 * 5 placements times 3**4 orientations, so
+136,080 reachable states. We search backward from solved over that space, weighting each macro by its
+move count, and store per state the macro that steps one closer to solved. Searching the 347
+enumerated macros in place of the 32 hand-written ones cuts the average corner stage from ~14.8
+moves to ~12.6.
 
 Running this as a script writes corner_table.bin (the search result, one macro per state) and
 corner_paths.bin (the composed whole solutions solveF2LCorners uses). See cross_table.py for what
 separates the two.
 """
 
-import heapq
 import itertools
 import operator
 import os
 
 from .constants import SOLVED_MASK
-from .cube_utils import applyMoves, buildGroupLUT, buildPathTable, deserialisePaths, invertMove, serialisePaths
+from .cross_table import EDGES
+from .cube_utils import (applyMoves, buildGroupLUT, buildPathTable, buildStageTable,
+                         deserialisePaths, invertMove, loadStageTable, serialisePaths)
+from .macro_enumeration import enumerateMacros
 
 # The 8 corner cubies as (sticker index, ...) triples, derived from the rotation mappings the same
 # way as the edges. The first four (those with a sticker on the white face, indices 0-8) are the
 # white corners we solve.
 CORNERS = [(0, 9, 38), (2, 29, 36), (6, 11, 18), (8, 20, 27), (15, 44, 51), (17, 24, 45), (26, 33, 47), (35, 42, 53)]
 
-# cross-preserving macros: short move sequences that leave the solved cross unchanged. Each hides a
-# corner in a side slot, turns the free bottom (D) layer, and restores it. The set is closed under
-# inversion, so the move back towards solved is another macro; we store the inverse string per macro.
-MACROS = [
-    ["F", "D", "F'"], ["F", "D'", "F'"], ["L", "D", "L'"], ["L", "D'", "L'"],
-    ["R", "D", "R'"], ["R", "D'", "R'"], ["B", "D", "B'"], ["B", "D'", "B'"],
-    ["F'", "D", "F"], ["F'", "D'", "F"], ["L'", "D", "L"], ["L'", "D'", "L"],
-    ["R'", "D", "R"], ["R'", "D'", "R"], ["B'", "D", "B"], ["B'", "D'", "B"],
-    ["F", "D", "D", "F'"], ["F", "D'", "F'", "D"], ["L", "D", "D", "L'"], ["L", "D'", "L'", "D"],
-    ["R", "D", "D", "R'"], ["R", "D'", "R'", "D"], ["B", "D", "D", "B'"], ["B", "D'", "B'", "D"],
-    ["F'", "D", "D", "F"], ["F'", "D", "F", "D'"], ["L'", "D", "D", "L"], ["L'", "D", "L", "D'"],
-    ["R'", "D", "D", "R"], ["R'", "D", "R", "D'"], ["B'", "D", "D", "B"], ["B'", "D", "B", "D'"],
-]
+# A corner-stage macro only has to leave the cross where it found it. Its effect is decided by all 24
+# corner stickers - every slot a white corner can occupy, not just the four it ends in.
+PRESERVED_STICKERS = sorted(p for (a, b) in EDGES if a < 9 or b < 9 for p in (a, b))
+TRACKED_STICKERS = [p for tri in CORNERS for p in tri]
+
+# This stage caps macro length rather than search depth. The enumeration finds 23,543 distinct corner
+# effects at length 8, far more than a search over 136,080 states can afford to branch over; capping
+# at 5 gives 347 macros for a mean of 12.6 moves, where allowing 6 costs three times the build to
+# reach 12.1. The half depth stays at 4 even though no macro exceeds 5 moves, because a length-5
+# macro is not always splittable into two halves of 3 that are themselves free of same-face repeats -
+# dropping to 3 loses 32 of the 347.
+MACRO_HALF_DEPTH = 4
+MACRO_MAX_LENGTH = 5
 
 # number of encodable states and the sentinel stored for the solved state / any unreachable index
 TABLE_SIZE = 24**4
-NO_MACRO = 255
+NO_MACRO = 0xFFFF
 
 _TABLE_PATH = os.path.join(os.path.dirname(__file__), "data", "corner_table.bin")
 
 
-# the move sequence (as a string) that undoes each macro - applied to step towards the solved corners
-INVERSE_MACROS = ["".join(invertMove(m) for m in reversed(seq)) for seq in MACROS]
+_macros = None
+_inverseMacros = None
+
+
+def macros() -> tuple[list, list]:
+    """Returns the stage's macros and the move string undoing each of them.
+
+    Enumerating them takes a second or so, and only the table builds ever need them - solving reads
+    the path table - so this happens on the first call rather than on import. The enumeration is
+    deterministic and ordered, which it has to be: the table stores macro indices, so a macro set
+    that came out in a different order would not match an existing table.
+
+    Returns:
+        tuple[list, list]: The macros, and the inverse move string for each.
+    """
+    global _macros, _inverseMacros
+    if _macros is None:
+        _macros = enumerateMacros(PRESERVED_STICKERS, TRACKED_STICKERS, MACRO_HALF_DEPTH,
+                                  MACRO_MAX_LENGTH)
+        _inverseMacros = ["".join(invertMove(m) for m in reversed(seq)) for seq in _macros]
+    return _macros, _inverseMacros
+
 
 # map each white corner's colour pair to a fixed index, from the solved cube
 _ORDER = {}
@@ -108,49 +132,20 @@ def encodeCorners(state: str) -> int:
             + _CORNER_GROUP_LUT[2].get(c[12:18], 0) + _CORNER_GROUP_LUT[3].get(c[18:24], 0))
 
 
-def buildTable() -> bytearray:
-    """Builds the corner macro table by move-weighted (Dijkstra) search backwards from solved.
-
-    Each macro edge is weighted by its move length, so every reachable corner state stores a macro
-    on a move-shortest path to solved, placing the corners in as few moves as the macro set allows
-    rather than in the fewest macros. The solved state and unreachable indices keep NO_MACRO.
+def buildTable():
+    """Builds the corner macro table, placing the corners in as few moves as the macro set allows.
 
     Returns:
-        bytearray: The macro table of length TABLE_SIZE.
+        array: The macro table of length TABLE_SIZE.
     """
-    table = bytearray([NO_MACRO]) * TABLE_SIZE
-    distance = [1 << 30] * TABLE_SIZE
-
-    solvedIdx = encodeCorners(SOLVED_MASK)
-    distance[solvedIdx] = 0
-    reps = {solvedIdx: SOLVED_MASK}
-    queue = [(0, solvedIdx)]
-
-    while queue:
-        dist, idx = heapq.heappop(queue)
-        if dist > distance[idx]:
-            continue  # stale heap entry
-        state = reps[idx]
-        for macro, sequence in enumerate(MACROS):
-            newState = applyMoves(state, sequence)
-            newIdx = encodeCorners(newState)
-            newDistance = dist + len(sequence)
-            if newDistance < distance[newIdx]:
-                # stepping back towards solved applies the macro's inverse, so store the macro
-                # index and look it up in INVERSE_MACROS when solving
-                distance[newIdx] = newDistance
-                table[newIdx] = macro
-                reps[newIdx] = newState
-                heapq.heappush(queue, (newDistance, newIdx))
-
-    return table
+    return buildStageTable(SOLVED_MASK, encodeCorners, TABLE_SIZE, NO_MACRO, macros()[0])
 
 
-def _loadTable() -> bytearray | None:
+def _loadTable():
     """Loads the corner table from disk. Returns None when it hasn't been built yet."""
     try:
         with open(_TABLE_PATH, "rb") as handle:
-            return bytearray(handle.read())
+            return loadStageTable(handle.read())
     except FileNotFoundError:
         return None
 
@@ -160,12 +155,13 @@ CORNER_TABLE = _loadTable()
 _PATHS_PATH = os.path.join(os.path.dirname(__file__), "data", "corner_paths.bin")
 
 
-def buildPaths(table: bytearray = None) -> dict:
+def buildPaths(table=None) -> dict:
     """Builds the full-solution table: every corner state -> (permutation, move labels) solving it."""
     if table is None:
         table = buildTable()
-    return buildPathTable(SOLVED_MASK, encodeCorners, table, NO_MACRO, MACROS, applyMoves,
-                          lambda macro: INVERSE_MACROS[macro])
+    stageMacros, inverseMacros = macros()
+    return buildPathTable(SOLVED_MASK, encodeCorners, table, NO_MACRO, stageMacros, applyMoves,
+                          lambda macro: inverseMacros[macro])
 
 
 def _loadPaths() -> dict | None:
@@ -181,12 +177,13 @@ CORNER_PATHS = _loadPaths()
 
 
 if __name__ == "__main__":
+    print(f"enumerated {len(macros()[0])} macros")
     generated = buildTable()
     os.makedirs(os.path.dirname(_TABLE_PATH), exist_ok=True)
     with open(_TABLE_PATH, "wb") as handle:
-        handle.write(generated)
+        handle.write(generated.tobytes())
     reachable = sum(1 for b in generated if b != NO_MACRO)
-    print(f"wrote {_TABLE_PATH} ({len(generated)} bytes, {reachable} reachable states)")
+    print(f"wrote {_TABLE_PATH} ({len(generated)} states, {reachable} reachable)")
 
     paths = buildPaths(generated)
     with open(_PATHS_PATH, "wb") as handle:

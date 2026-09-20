@@ -1,50 +1,70 @@
 """Precomputed macro solutions for the F2L middle-edge subproblem.
 
-The four middle-layer edges are solved last in F2L, so their macros must preserve both the
-cross and the white corners - the entire top layer. The shortest such cross-and-corner-preserving
-move sequences are 6 moves long; together with the free bottom-layer turns (D, D', D2), which
-reposition any middle edge displaced into the bottom, they span all 26,880 reachable middle-edge
-states. We search backward from solved over that space, weighting each macro by its move count, and
-store per state the macro that steps one closer to solved.
+The four middle-layer edges are solved last in F2L, so their macros must preserve both the cross and
+the white corners - the entire top layer. Those macros are enumerated (see macro_enumeration.py)
+rather than written out by hand: 651 of them up to length 8, against the 8 length-6 movers and 3
+bottom-layer turns this stage used to search over. They span all 26,880 reachable middle-edge states
+either way, but the wider set cuts the average solution from ~23.9 moves to ~17.1. We search backward
+from solved over that space, weighting each macro by its move count, and store per state the macro
+that steps one closer to solved.
 
 Running this as a script writes middle_table.bin (the search result, one macro per state) and
 middle_paths.bin (the composed whole solutions solveF2LMiddlePieces uses). See cross_table.py for
 what separates the two.
 """
 
-import heapq
 import itertools
 import operator
 import os
 
 from .constants import SOLVED_MASK
+from .corner_table import CORNERS
 from .cross_table import EDGES
-from .cube_utils import applyMoves, buildGroupLUT, buildPathTable, deserialisePaths, invertMove, serialisePaths
+from .cube_utils import (applyMoves, buildGroupLUT, buildPathTable, buildStageTable,
+                         deserialisePaths, invertMove, loadStageTable, serialisePaths)
+from .macro_enumeration import enumerateMacros
 
 # the eight non-white edge slots (EDGES without the four white ones); the four middle edges live
 # among these during solving, sharing them with the not-yet-solved bottom (yellow) edges
 NONWHITE_SLOTS = [(a, b) for (a, b) in EDGES if a >= 9 and b >= 9]
 
-# cross-and-corner-preserving macros: the 8 shortest (length-6) middle-edge movers plus the free
-# bottom-layer turns. The set is closed under inversion, so the step back towards solved is another
-# macro; we store the inverse string per macro.
-MACROS = [
-    ["F", "D", "R", "F'", "R'", "F'"], ["F", "R", "F", "R'", "D'", "F'"],
-    ["L", "D", "F", "L'", "F'", "L'"], ["L", "F", "L", "F'", "D'", "L'"],
-    ["R", "D", "B", "R'", "B'", "R'"], ["R", "B", "R", "B'", "D'", "R'"],
-    ["B", "D", "L", "B'", "L'", "B'"], ["B", "L", "B", "L'", "D'", "B'"],
-    ["D"], ["D'"], ["D", "D"],
-]
+# A middle-stage macro has to leave the cross and the white corners exactly where it found them; the
+# yellow layer is free, since the last-layer stage sorts out whatever state it is left in. Its effect
+# is decided by the eight non-white edge slots, which are every slot a middle edge can occupy.
+PRESERVED_STICKERS = sorted(set([p for (a, b) in EDGES if a < 9 or b < 9 for p in (a, b)]
+                                + [p for tri in CORNERS if min(tri) < 9 for p in tri]))
+TRACKED_STICKERS = [p for pair in NONWHITE_SLOTS for p in pair]
+
+# macros run up to twice this; the 8 hand-written movers this replaced were all length 6
+MACRO_HALF_DEPTH = 4
 
 # number of encodable states and the sentinel stored for the solved state / any unreachable index
 TABLE_SIZE = 16**4
-NO_MACRO = 255
+NO_MACRO = 0xFFFF
 
 _TABLE_PATH = os.path.join(os.path.dirname(__file__), "data", "middle_table.bin")
 
 
-# the move sequence (as a string) that undoes each macro - applied to step towards solved middles
-INVERSE_MACROS = ["".join(invertMove(m) for m in reversed(seq)) for seq in MACROS]
+_macros = None
+_inverseMacros = None
+
+
+def macros() -> tuple[list, list]:
+    """Returns the stage's macros and the move string undoing each of them.
+
+    Enumerating them takes a couple of seconds, and only the table builds ever need them - solving
+    reads the path table - so this is done on the first call rather than on import. The enumeration
+    is deterministic and ordered, which it has to be: the table stores macro indices, so a rebuilt
+    macro set that came out in a different order would not match an existing table.
+
+    Returns:
+        tuple[list, list]: The macros, and the inverse move string for each.
+    """
+    global _macros, _inverseMacros
+    if _macros is None:
+        _macros = enumerateMacros(PRESERVED_STICKERS, TRACKED_STICKERS, MACRO_HALF_DEPTH)
+        _inverseMacros = ["".join(invertMove(m) for m in reversed(seq)) for seq in _macros]
+    return _macros, _inverseMacros
 
 # map each middle edge's colour pair to a fixed index, from the solved cube
 _ORDER = {}
@@ -98,46 +118,20 @@ def encodeMiddles(state: str) -> int:
             + _MIDDLE_GROUP_LUT[2].get(m[8:12], 0) + _MIDDLE_GROUP_LUT[3].get(m[12:16], 0))
 
 
-def buildTable() -> bytearray:
-    """Builds the middle-edge macro table by move-weighted (Dijkstra) search backwards from solved.
-
-    Each macro edge is weighted by its move length, so every reachable middle-edge state stores a
-    macro on a move-shortest path to solved. The solved state and unreachable indices keep NO_MACRO.
+def buildTable():
+    """Builds the middle-edge macro table, inserting the edges in as few moves as the macros allow.
 
     Returns:
-        bytearray: The macro table of length TABLE_SIZE.
+        array: The macro table of length TABLE_SIZE.
     """
-    table = bytearray([NO_MACRO]) * TABLE_SIZE
-    distance = [1 << 30] * TABLE_SIZE
-
-    solvedIdx = encodeMiddles(SOLVED_MASK)
-    distance[solvedIdx] = 0
-    reps = {solvedIdx: SOLVED_MASK}
-    queue = [(0, solvedIdx)]
-
-    while queue:
-        dist, idx = heapq.heappop(queue)
-        if dist > distance[idx]:
-            continue  # stale heap entry
-        state = reps[idx]
-        for macro, sequence in enumerate(MACROS):
-            newState = applyMoves(state, sequence)
-            newIdx = encodeMiddles(newState)
-            newDistance = dist + len(sequence)
-            if newDistance < distance[newIdx]:
-                distance[newIdx] = newDistance
-                table[newIdx] = macro
-                reps[newIdx] = newState
-                heapq.heappush(queue, (newDistance, newIdx))
-
-    return table
+    return buildStageTable(SOLVED_MASK, encodeMiddles, TABLE_SIZE, NO_MACRO, macros()[0])
 
 
-def _loadTable() -> bytearray | None:
+def _loadTable():
     """Loads the middle table from disk, or None if buildTable hasn't been run."""
     try:
         with open(_TABLE_PATH, "rb") as handle:
-            return bytearray(handle.read())
+            return loadStageTable(handle.read())
     except FileNotFoundError:
         return None
 
@@ -147,12 +141,13 @@ MIDDLE_TABLE = _loadTable()
 _PATHS_PATH = os.path.join(os.path.dirname(__file__), "data", "middle_paths.bin")
 
 
-def buildPaths(table: bytearray = None) -> dict:
+def buildPaths(table=None) -> dict:
     """Builds the full-solution table: every middle state -> (permutation, move labels) solving it."""
     if table is None:
         table = buildTable()
-    return buildPathTable(SOLVED_MASK, encodeMiddles, table, NO_MACRO, MACROS, applyMoves,
-                          lambda macro: INVERSE_MACROS[macro])
+    stageMacros, inverseMacros = macros()
+    return buildPathTable(SOLVED_MASK, encodeMiddles, table, NO_MACRO, stageMacros, applyMoves,
+                          lambda macro: inverseMacros[macro])
 
 
 def _loadPaths() -> dict | None:
@@ -168,12 +163,13 @@ MIDDLE_PATHS = _loadPaths()
 
 
 if __name__ == "__main__":
+    print(f"enumerated {len(macros()[0])} macros")
     generated = buildTable()
     os.makedirs(os.path.dirname(_TABLE_PATH), exist_ok=True)
     with open(_TABLE_PATH, "wb") as handle:
-        handle.write(generated)
+        handle.write(generated.tobytes())
     reachable = sum(1 for b in generated if b != NO_MACRO)
-    print(f"wrote {_TABLE_PATH} ({len(generated)} bytes, {reachable} reachable states)")
+    print(f"wrote {_TABLE_PATH} ({len(generated)} states, {reachable} reachable)")
 
     paths = buildPaths(generated)
     with open(_PATHS_PATH, "wb") as handle:

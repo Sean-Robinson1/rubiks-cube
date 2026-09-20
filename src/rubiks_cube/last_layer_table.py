@@ -1,16 +1,17 @@
 """Precomputed macro solutions for the entire last layer (the yellow face).
 
 Once the F2L is solved, the whole last layer - its 4 corners and 4 edges - is finished here in one
-table-driven pass, replacing the previous four looping beginner-method stages. The macros are short
-move sequences that are strictly F2L-neutral: applied to a cube of 54 distinct labels, every one of
-the 33 non-last-layer stickers returns to its exact home (see _strictNeutral). A permutation that
-fixes those positions on distinct labels fixes them from any state, so no macro can disturb the
-solved F2L.
+table-driven pass, replacing the previous four looping beginner-method stages. The macros are move
+sequences that are strictly F2L-neutral: applied to a cube of 54 distinct labels, every one of the
+34 non-last-layer stickers returns to its exact home (see _strictNeutral). A permutation that fixes
+those positions on distinct labels fixes them from any state, so no macro can disturb the solved F2L.
 
 Given a solved F2L the last layer has exactly 4! * 3^3 * 4! * 2^3 / 2 = 62,208 reachable states
-(the /2 is the corner/edge permutation-parity constraint). Twelve strictly-neutral macros plus the
-free bottom turns (D, D', D2) span all of them, so we search backward from solved, weighting each
-macro by its move count, and store per state the macro that steps one closer.
+(the /2 is the corner/edge permutation-parity constraint). The macros are enumerated rather than
+written by hand (see macro_enumeration.py): 147 of them up to length 8, against the 15 hand-written
+ones this replaced. Both sets span the whole space, but searching the wider one cuts the average
+last layer from ~31.4 moves to ~19.7. We search backward from solved, weighting each macro by its
+move count, and store per state the macro that steps one closer.
 
 Running this as a script writes last_layer_table.bin (the search result, one macro per state) and
 last_layer_paths.bin (the composed whole solutions solveLastLayer uses). See cross_table.py for what
@@ -18,14 +19,14 @@ separates the two. The paths here are keyed by the 20 last-layer stickers rather
 index, so solving needs no encode step at all.
 """
 
-import heapq
 import itertools
 import operator
 import os
 
-from .constants import RELATIVE_FACE_MAPPING, SOLVED_MASK
-from .cube_utils import (applyMoves, buildPathTable, deserialiseKeyedPaths, invertMove,
-                         serialiseKeyedPaths)
+from .constants import SOLVED_MASK
+from .cube_utils import (applyMoves, buildPathTable, buildStageTable, deserialiseKeyedPaths,
+                         invertMove, loadStageTable, serialiseKeyedPaths)
+from .macro_enumeration import enumerateMacros
 
 # the four last-layer (yellow/bottom) corner and edge slots, as sticker-index tuples. For every
 # corner the last element is the yellow-face sticker; for every edge the second element is.
@@ -35,7 +36,7 @@ LL_EDGES = [(16, 48), (25, 46), (34, 50), (43, 52)]
 # the number of encodable states (dense index, see encodeLastLayer) and the sentinel for the solved
 # state / any unreachable index. Only 62,208 of these indices are reachable; the rest stay NO_MACRO.
 TABLE_SIZE = 24 * 81 * 24 * 16
-NO_MACRO = 255
+NO_MACRO = 0xFFFF
 
 _TABLE_PATH = os.path.join(os.path.dirname(__file__), "data", "last_layer_table.bin")
 
@@ -58,40 +59,35 @@ def _strictNeutral(tokens: list[str]) -> bool:
     return all(result[i] == _PROBE[i] for i in _NON_LL)
 
 
-def _conjugate(face: str, tokens: list[str]) -> list[str]:
-    """Rewrites a macro as if performed from a different side face (the same remap
-    Cube.convertSequenceFromFace uses), giving the four rotational variants of each base macro."""
-    remap = RELATIVE_FACE_MAPPING.get(face, {})
-    return [remap.get(move[0], move[0]) + move[1:] for move in tokens]
+# A last-layer macro's effect is decided by the 20 last-layer stickers; everything else is preserved.
+# macros run up to twice this depth, which reaches the length-8 algorithms the layer needs.
+TRACKED_STICKERS = ([p for tri in LL_CORNERS for p in tri] + [p for pair in LL_EDGES for p in pair])
+MACRO_HALF_DEPTH = 4
+
+_macros = None
+_inverseMacros = None
 
 
-# base macros, each strictly F2L-neutral: edge orientation, an edge 3-cycle, a corner 3-cycle, and two
-# corner-twist commutators. Conjugated onto the four side faces they cover every kind of last-layer
-# change. Anything added here gets filtered below, so it is safe to add more.
-_BASE_MACROS = [
-    ["F", "L", "D", "L'", "D'", "F'"],
-    ["L", "D", "L'", "D", "L", "D", "D", "L'", "D"],
-    ["D", "L", "D'", "R'", "D", "L'", "D'", "R"],
-    ["R'", "D'", "R", "D", "R'", "D'", "R", "D"],
-    ["R", "D", "R'", "D", "R", "D", "R'", "D"],
-]
-_FACES = ["R", "B", "G", "O"]
+def macros() -> tuple[list, list]:
+    """Returns the stage's macros and the move string undoing each of them.
 
-# build the macro set: every strictly-neutral face-variant of every base (de-duplicated, order kept)
-# plus the free bottom turns. Filtering here keeps the whole table F2L-safe by construction.
-MACROS: list[list[str]] = []
-_seenMacros = set()
-for _base in _BASE_MACROS:
-    for _face in _FACES:
-        _variant = _conjugate(_face, _base)
-        _key = tuple(_variant)
-        if _key not in _seenMacros and _strictNeutral(_variant):
-            _seenMacros.add(_key)
-            MACROS.append(_variant)
-MACROS += [["D"], ["D'"], ["D", "D"]]
+    Enumerating them takes a couple of seconds and only the table builds need them - solving reads
+    the path table - so it happens on the first call rather than on import. The enumeration is
+    deterministic and ordered, which it has to be, since the table stores macro indices.
 
-# the move sequence (as a string) that undoes each macro - applied to step towards the solved layer
-INVERSE_MACROS = ["".join(invertMove(m) for m in reversed(seq)) for seq in MACROS]
+    Every macro is strictly F2L-neutral by construction: the enumeration only joins half-sequences
+    whose composition fixes each of _NON_LL, which is the same permutation-level test _strictNeutral
+    applies, so no macro can disturb the F2L from any state.
+
+    Returns:
+        tuple[list, list]: The macros, and the inverse move string for each.
+    """
+    global _macros, _inverseMacros
+    if _macros is None:
+        _macros = enumerateMacros(_NON_LL, TRACKED_STICKERS, MACRO_HALF_DEPTH)
+        _inverseMacros = ["".join(invertMove(m) for m in reversed(seq)) for seq in _macros]
+    return _macros, _inverseMacros
+
 
 # canonical piece ids from the solved cube: a corner is identified by its two non-yellow colours, an
 # edge by its one non-yellow colour, so the same piece always maps to the same id regardless of slot
@@ -209,48 +205,46 @@ def encodeLastLayer(state: str) -> int:
     return ((_RANK4[cornerKey] * 81 + cornerOri) * 24 + _RANK4[edgeKey]) * 16 + edgeOri
 
 
-def buildTable() -> bytearray:
-    """Builds the last-layer macro table by move-weighted (Dijkstra) search backwards from solved.
+def _cachedEncode():
+    """Returns an encodeLastLayer that caches its answers, for use while building the tables.
 
-    Each macro edge is weighted by its move length, so every reachable last-layer state stores a
-    macro on a move-shortest path to solved. The solved state and unreachable indices keep NO_MACRO.
+    Every state the build reaches is produced by applying strictly F2L-neutral macros to the solved
+    cube, so all of them have a solved F2L - and there the 20 gathered last-layer stickers are a
+    bijection with the encode index (the same fact the solver's path lookup rests on). So the
+    stickers are a sound cache key, the cache is bounded by the 62,208 reachable states, and it
+    returns exactly what encodeLastLayer would. The build re-encodes each state many times over, so
+    this replaces most of the encodes with one gather and a dict lookup.
 
     Returns:
-        bytearray: The macro table of length TABLE_SIZE.
+        A function taking a state and returning its encoded last-layer index.
     """
-    table = bytearray([NO_MACRO]) * TABLE_SIZE
-    distance = [1 << 30] * TABLE_SIZE
+    cache = {}
 
-    solvedIdx = encodeLastLayer(SOLVED_MASK)
-    distance[solvedIdx] = 0
-    reps = {solvedIdx: SOLVED_MASK}
-    queue = [(0, solvedIdx)]
+    def encode(state: str) -> int:
+        key = LAST_LAYER_KEY(state)
+        index = cache.get(key)
+        if index is None:
+            index = encodeLastLayer(state)
+            cache[key] = index
+        return index
 
-    while queue:
-        dist, idx = heapq.heappop(queue)
-        if dist > distance[idx]:
-            continue  # stale heap entry
-        state = reps[idx]
-        for macro, sequence in enumerate(MACROS):
-            newState = applyMoves(state, sequence)
-            newIdx = encodeLastLayer(newState)
-            newDistance = dist + len(sequence)
-            if newDistance < distance[newIdx]:
-                # stepping back towards solved applies the macro's inverse, so store the macro
-                # index and look it up in INVERSE_MACROS when solving
-                distance[newIdx] = newDistance
-                table[newIdx] = macro
-                reps[newIdx] = newState
-                heapq.heappush(queue, (newDistance, newIdx))
-
-    return table
+    return encode
 
 
-def _loadTable() -> bytearray | None:
+def buildTable():
+    """Builds the last-layer macro table, solving the layer in as few moves as the macros allow.
+
+    Returns:
+        array: The macro table of length TABLE_SIZE.
+    """
+    return buildStageTable(SOLVED_MASK, _cachedEncode(), TABLE_SIZE, NO_MACRO, macros()[0])
+
+
+def _loadTable():
     """Loads the last-layer table, or None if it hasn't been built yet."""
     try:
         with open(_TABLE_PATH, "rb") as handle:
-            return bytearray(handle.read())
+            return loadStageTable(handle.read())
     except FileNotFoundError:
         return None
 
@@ -260,22 +254,23 @@ LAST_LAYER_TABLE = _loadTable()
 _PATHS_PATH = os.path.join(os.path.dirname(__file__), "data", "last_layer_paths.bin")
 
 
-def buildPaths(table: bytearray = None) -> dict:
+def buildPaths(table=None) -> dict:
     """Builds the full solution table, mapping every last layer state to the solution for it.
 
     The table is keyed by the 20 sticker gather tuple rather than the encode index, so that the
     solver can look a state up straight from its stickers with no encode step.
 
     Args:
-        table (bytearray, optional): The macro table to follow. Built if not given.
+        table (array, optional): The macro table to follow. Built if not given.
 
     Returns:
         dict: Maps each state's sticker tuple to its permutation and move labels.
     """
     if table is None:
         table = buildTable()
-    return buildPathTable(SOLVED_MASK, encodeLastLayer, table, NO_MACRO, MACROS, applyMoves,
-                          lambda macro: INVERSE_MACROS[macro], keyFn=LAST_LAYER_KEY)
+    stageMacros, inverseMacros = macros()
+    return buildPathTable(SOLVED_MASK, _cachedEncode(), table, NO_MACRO, stageMacros, applyMoves,
+                          lambda macro: inverseMacros[macro], keyFn=LAST_LAYER_KEY)
 
 
 def _loadPaths() -> dict | None:
@@ -296,8 +291,8 @@ if __name__ == "__main__":
     assert reachable == 62208, f"expected 62208 reachable states, got {reachable}"
     os.makedirs(os.path.dirname(_TABLE_PATH), exist_ok=True)
     with open(_TABLE_PATH, "wb") as handle:
-        handle.write(generated)
-    print(f"wrote {_TABLE_PATH} ({len(generated)} bytes, {reachable} reachable states, {len(MACROS)} macros)")
+        handle.write(generated.tobytes())
+    print(f"wrote {_TABLE_PATH} ({len(generated)} states, {reachable} reachable, {len(macros()[0])} macros)")
 
     paths = buildPaths(generated)
     with open(_PATHS_PATH, "wb") as handle:

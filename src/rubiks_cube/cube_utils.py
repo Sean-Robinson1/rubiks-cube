@@ -1,3 +1,5 @@
+import array
+import heapq
 import itertools
 import operator
 import struct
@@ -312,6 +314,96 @@ def compileSequence(sequence: str) -> tuple[tuple[int, ...], tuple[str, ...]]:
     return tuple(ord(c) - 33 for c in state), tuple(labels)
 
 
+def composeMoves(moves) -> tuple[int, ...]:
+    """Composes a list of moves into the single permutation that applies all of them at once.
+
+    Read off the distinct label probe, so permutation[i] is the square of the old state that ends up
+    at position i - the same form compileSequence produces for whole solutions. Applying a composed
+    macro is one gather rather than one rotate per move in it.
+
+    Args:
+        moves: An iterable of rotations, e.g. ["R", "D'", "R'"].
+
+    Returns:
+        tuple[int, ...]: The composed 54 square permutation.
+    """
+    return tuple(ord(c) - 33 for c in applyMoves(_PATH_PROBE, moves))
+
+
+def loadStageTable(data: bytes):
+    """Reads back a stage table written by buildStageTable.
+
+    Args:
+        data (bytes): The table as written to disk.
+
+    Returns:
+        array: The table, one 16 bit macro index per state.
+    """
+    table = array.array("H")
+    table.frombytes(data)
+    return table
+
+
+def buildStageTable(solvedState, encodeFn, tableSize, sentinel, macros):
+    """Builds a stage's single-step table by move-weighted (Dijkstra) search backwards from solved.
+
+    Each macro edge is weighted by its move count, so every reachable state ends up storing a macro
+    on a move-shortest path to solved, solving the stage in as few moves as the macro set allows
+    rather than in the fewest macros. The solved state and unreachable indices keep the sentinel.
+
+    Every macro is composed into one permutation up front, so relaxing an edge is a single gather
+    instead of a rotate per move - the search visits each (state, macro) pair exactly once, so that
+    composition is the whole cost of the build.
+
+    The table stores a macro index per state as 16 bits, since an enumerated macro set runs to
+    hundreds of entries - well past what the byte-wide tables held when the macros were written by
+    hand.
+
+    Args:
+        solvedState (str): The solved cube string.
+        encodeFn: The stage's encode function (state -> index).
+        tableSize (int): The number of encodable states.
+        sentinel (int): The value left at the solved state and at any unreachable index. It has to
+            be outside the range of macro indices.
+        macros (list): The stage's macros, each a list of moves.
+
+    Returns:
+        array: The stage's table, of length tableSize.
+    """
+    if len(macros) >= sentinel:
+        raise ValueError(f"{len(macros)} macros cannot be indexed below the sentinel {sentinel}")
+
+    getters = [operator.itemgetter(*composeMoves(macro)) for macro in macros]
+    weights = [len(macro) for macro in macros]
+
+    table = array.array("H", [sentinel]) * tableSize
+    distance = [1 << 30] * tableSize
+
+    solvedIdx = encodeFn(solvedState)
+    distance[solvedIdx] = 0
+    reps = {solvedIdx: solvedState}
+    queue = [(0, solvedIdx)]
+
+    while queue:
+        dist, idx = heapq.heappop(queue)
+        if dist > distance[idx]:
+            continue  # stale heap entry
+        state = reps[idx]
+        for macro, getter in enumerate(getters):
+            newState = "".join(getter(state))
+            newIdx = encodeFn(newState)
+            newDistance = dist + weights[macro]
+            if newDistance < distance[newIdx]:
+                # stepping back towards solved applies the macro's inverse, so store the macro
+                # index and look it up in the stage's INVERSE_MACROS when solving
+                distance[newIdx] = newDistance
+                table[newIdx] = macro
+                reps[newIdx] = newState
+                heapq.heappush(queue, (newDistance, newIdx))
+
+    return table
+
+
 def buildPathTable(solvedState, encodeFn, table, sentinel, generators, applyGen, stepString,
                    keyFn=None) -> dict:
     """Builds a stage's full-solution table from its (already-proven) single-step table.
@@ -337,19 +429,39 @@ def buildPathTable(solvedState, encodeFn, table, sentinel, generators, applyGen,
         dict: key -> (permutation, labels) for every reachable non-solved state (key is the
         encode index, or keyFn(state) when given).
     """
+    # the enumeration below applies every generator to every reachable state, so a multi-move
+    # generator is composed into a single permutation first, on the same reasoning as the steps below
+    genGetters = []
+    for generator in generators:
+        moves = [generator] if isinstance(generator, str) else list(generator)
+        genGetters.append(operator.itemgetter(*composeMoves(moves)) if len(moves) > 1 else None)
+
     solvedIdx = encodeFn(solvedState)
     seen = {solvedIdx}
     reps = {solvedIdx: solvedState}
     queue = deque([solvedIdx])
     while queue:
         state = reps[queue.popleft()]
-        for generator in generators:
-            newState = applyGen(state, generator)
+        for generator, getter in zip(generators, genGetters):
+            newState = "".join(getter(state)) if getter is not None else applyGen(state, generator)
             newIdx = encodeFn(newState)
             if newIdx not in seen:
                 seen.add(newIdx)
                 reps[newIdx] = newState
                 queue.append(newIdx)
+
+    # A stage has only as many distinct steps as it has generators, and every state's walk applies
+    # them over and over, so each multi-move step is composed into one permutation up front - one
+    # gather in place of a rotate per move. A single-move step is already exactly one gather, so
+    # composing it would only add a lookup; those keep going through applySequence.
+    stepGetters = {}
+    for value in set(table):
+        if value == sentinel:
+            continue
+        step = stepString(value)
+        permutation, labels = compileSequence(step)
+        if len(labels) > 1:
+            stepGetters[step] = operator.itemgetter(*permutation)
 
     paths = {}
     for idx, state in reps.items():
@@ -359,7 +471,8 @@ def buildPathTable(solvedState, encodeFn, table, sentinel, generators, applyGen,
         while table[j] != sentinel:
             step = stepString(table[j])
             parts.append(step)
-            s = applySequence(s, step)
+            getter = stepGetters.get(step)
+            s = "".join(getter(s)) if getter is not None else applySequence(s, step)
             j = encodeFn(s)
         if parts:  # everything but the already-solved state
             paths[idx if keyFn is None else keyFn(state)] = compileSequence("".join(parts))
