@@ -76,12 +76,16 @@ def wallClockSummary(cube: Cube, scrambles: list) -> None:
     """
     solves = len(scrambles)
 
-    start = time.perf_counter()
+    # timed per solve, with the state setup left outside the clock, so this matches what
+    # Cube.analyseSolves reports. Timing the loop as a whole instead charges the two attribute
+    # writes and the loop machinery to the solver, which reads about 0.5us a solve too high.
+    total = 0.0
     for state in scrambles:
         cube.state = state
         cube.movesMade = []
+        tick = time.perf_counter()
         cube.solve()
-    total = time.perf_counter() - start
+        total += time.perf_counter() - tick
 
     stageTime = {stage: 0.0 for stage in STAGES}
     for state in scrambles:
@@ -92,7 +96,7 @@ def wallClockSummary(cube: Cube, scrambles: list) -> None:
             getattr(cube, stage)()
             stageTime[stage] += time.perf_counter() - tick
 
-    print("\n=== wall clock (no profiler overhead) ===")
+    print("\n=== wall clock (no profiler overhead, solve() only) ===")
     print(f"  {solves} solves in {total:.4f}s  ->  {total / solves * 1e6:.2f} us/solve")
     print("  per stage (us/solve, share of solve):")
     perStageTotal = sum(stageTime.values()) or 1.0
