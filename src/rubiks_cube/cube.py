@@ -526,6 +526,18 @@ class Cube:
     def analyseSolves(self, numSolves: int = 100, displayAllTimes: bool = True, displayStats: bool = True) -> dict:
         """Repeatedly randomises and solves the cube, tracking various statistics about the solves.
 
+        The scrambles are generated up front and the headline timing goes through solve(), so what
+        is measured is the solver rather than the harness around it. Both of those matter more than
+        they look: randomising between solves leaves every table lookup cold and cost ~5.5us a
+        solve, and driving the four stage methods one at a time joins the state string four times
+        instead of once for another ~5.4us. Timing each solve individually is free by comparison,
+        so it stays.
+
+        The per-stage split has to call the stages separately to attribute time to them, so it runs
+        as a second pass and those four numbers still carry that overhead, over tables the first
+        pass has already warmed. They do not reconcile with avg_time in either direction: compare
+        the stages against each other, not against the total.
+
         Args:
             numSolves (int, optional): The number of solves to perform. Defaults to 100.
             displayAllTimes (bool, optional): If True, prints the time taken and number of rotations for each solve.
@@ -535,8 +547,31 @@ class Cube:
         Returns:
             dict: A dictionary containing various statistics about the solves.
         """
+        scrambles = []
+        for _ in range(numSolves):
+            self.randomise()
+            scrambles.append(self.state)
+
         totalTime = 0
         totalMoves = 0
+        totalMovesOptimised = 0
+        for state in scrambles:
+            self.state = state
+            self.movesMade = []
+            startTime = time.perf_counter()
+            self.solve()
+            solveTime = time.perf_counter() - startTime
+
+            totalTime += solveTime
+            optimisedMoves = self.optimisedMoves
+            if displayAllTimes:
+                print(f"Time Taken : {formatDuration(solveTime)}")
+                print(f"Number of Rotations: {len(optimisedMoves)}")
+
+            totalMoves += len(self.movesMade)
+            totalMovesOptimised += len(optimisedMoves)
+
+        # second pass, purely for the per-stage split
         totalCrossTime = 0
         maxCrossTime = 0
         totalCornersTime = 0
@@ -545,9 +580,8 @@ class Cube:
         maxMiddlesTime = 0
         totalLastLayerTime = 0
         maxLastLayerTime = 0
-        totalMovesOptimised = 0
-        for _ in range(numSolves):
-            self.randomise()
+        for state in scrambles:
+            self.state = state
             self.movesMade = []
             startTime = time.perf_counter()
             self.solveCross()
@@ -566,15 +600,6 @@ class Cube:
             lastLayerTime = time.perf_counter()
             totalLastLayerTime += lastLayerTime - middlesTime
             maxLastLayerTime = max(maxLastLayerTime, lastLayerTime - middlesTime)
-
-            totalTime += lastLayerTime - startTime
-            optimisedMoves = self.optimisedMoves
-            if displayAllTimes:
-                print(f"Time Taken : {formatDuration(lastLayerTime - startTime)}")
-                print(f"Number of Rotations: {len(optimisedMoves)}")
-
-            totalMoves += len(self.movesMade)
-            totalMovesOptimised += len(optimisedMoves)
 
         results = {
             # kept at full precision so the formatting below can show significant figures
