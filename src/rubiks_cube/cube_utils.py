@@ -594,6 +594,32 @@ def deserialiseKeyedPaths(data: bytes, keyLength: int) -> dict:
     return paths
 
 
+# largest unit first, so the first one a duration reaches is the one that keeps it readable
+_DURATION_UNITS = (("s", 1.0), ("ms", 1e-3), ("us", 1e-6), ("ns", 1e-9))
+
+
+def formatDuration(seconds: float) -> str:
+    """Formats a duration in seconds with the unit that reads most naturally for its size.
+
+    A solve takes microseconds and a whole analysis run takes seconds, so printing either in bare
+    seconds gives exponents (1.5e-05) rather than something you can read at a glance.
+
+    The unit is chosen against 0.9995 of its scale rather than the scale itself, so a duration that
+    rounds up to 1000 of the smaller unit is shown as 1.00 of the larger one instead of 1e+03.
+
+    Args:
+        seconds (float): The duration, in seconds.
+
+    Returns:
+        str: The duration to at most three significant figures, with its unit, e.g. "7.07 us".
+    """
+    magnitude = abs(seconds)
+    for unit, scale in _DURATION_UNITS:
+        if magnitude >= scale * 0.9995:
+            return f"{seconds / scale:.3g} {unit}"
+    return f"{seconds / 1e-9:.3g} ns"  # anything smaller, including zero
+
+
 def printAnalysis(analysis: dict) -> None:
     """Prints the analysis of multiple solves to the console.
 
@@ -602,22 +628,22 @@ def printAnalysis(analysis: dict) -> None:
     """
 
     print("\n-----------------------------")
-    print(f"Average Solve Time: {analysis['avg_time']:.2g}")
+    print(f"Average Solve Time: {formatDuration(analysis['avg_time'])}")
     print(f"Avg number of Rotations: {round(analysis['avg_moves'], 5)}")
     print(f"Avg number of optimised rotations: {round(analysis['avg_moves_optimised'], 5)}")
     print(f"Avg number of rotations saved:  {round(analysis['avg_moves_saved'],2)}")
 
     print("-----------------------------")
 
-    print(f"Avg Cross Time: {analysis['avg_cross_time']:.2g}")
-    print(f"Avg Corners Time: {analysis['avg_corners_time']:.2g}")
-    print(f"Avg Middles Time: {analysis['avg_middles_time']:.2g}")
-    print(f"Avg Last Layer Time: {analysis['avg_last_layer_time']:.2g}")
+    print(f"Avg Cross Time: {formatDuration(analysis['avg_cross_time'])}")
+    print(f"Avg Corners Time: {formatDuration(analysis['avg_corners_time'])}")
+    print(f"Avg Middles Time: {formatDuration(analysis['avg_middles_time'])}")
+    print(f"Avg Last Layer Time: {formatDuration(analysis['avg_last_layer_time'])}")
 
     print("-----------------------------")
 
-    print(f"Max Cross Time: {analysis['max_cross_time']:.2g}")
-    print(f"Max Corners Time: {analysis['max_corners_time']:.2g}")
-    print(f"Max Middles Time: {analysis['max_middles_time']:.2g}")
-    print(f"Max Last Layer Time: {analysis['max_last_layer_time']:.2g}")
+    print(f"Max Cross Time: {formatDuration(analysis['max_cross_time'])}")
+    print(f"Max Corners Time: {formatDuration(analysis['max_corners_time'])}")
+    print(f"Max Middles Time: {formatDuration(analysis['max_middles_time'])}")
+    print(f"Max Last Layer Time: {formatDuration(analysis['max_last_layer_time'])}")
     print("-----------------------------")

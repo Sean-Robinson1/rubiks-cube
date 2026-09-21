@@ -9,7 +9,7 @@ from .corner_table import CORNER_PATHS, encodeCorners
 from .cross_table import CROSS_PATHS, encodeCross
 from .middle_table import MIDDLE_PATHS, encodeMiddles
 from .last_layer_table import LAST_LAYER_PATHS, LAST_LAYER_KEY
-from .cube_utils import checkMask, optimiseMoves, printAnalysis, rotate
+from .cube_utils import checkMask, formatDuration, optimiseMoves, printAnalysis, rotate
 
 
 class Cube:
@@ -570,7 +570,7 @@ class Cube:
             totalTime += lastLayerTime - startTime
             optimisedMoves = self.optimisedMoves
             if displayAllTimes:
-                print(f"Time Taken : {lastLayerTime - startTime:.2g} seconds")
+                print(f"Time Taken : {formatDuration(lastLayerTime - startTime)}")
                 print(f"Number of Rotations: {len(optimisedMoves)}")
 
             totalMoves += len(self.movesMade)

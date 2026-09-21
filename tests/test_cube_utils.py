@@ -3,7 +3,7 @@ import unittest
 
 from rubiks_cube.constants import STRING_ROTATION_MAPPINGS
 from rubiks_cube.cube import Cube
-from rubiks_cube.cube_utils import checkMask, combineMasks, optimiseMoves, rotate
+from rubiks_cube.cube_utils import checkMask, combineMasks, formatDuration, optimiseMoves, rotate
 
 
 class TestCubeNonSolver(unittest.TestCase):
@@ -116,6 +116,24 @@ class TestCubeNonSolver(unittest.TestCase):
             self.assertEqual(encodeCorners(cube.state), refCorners(cube.state))
             cube.solveF2LCorners()
             self.assertEqual(encodeMiddles(cube.state), refMiddles(cube.state))
+
+    def test_formatDuration(self):
+        self.assertEqual(formatDuration(45.0), "45 s")
+        self.assertEqual(formatDuration(0.0163), "16.3 ms")
+        self.assertEqual(formatDuration(7.07e-06), "7.07 us")
+        self.assertEqual(formatDuration(1.5e-05), "15 us")
+        self.assertEqual(formatDuration(5e-10), "0.5 ns")
+        self.assertEqual(formatDuration(0.0), "0 ns")
+
+        # a duration that would round up to 1000 of a unit steps up to the next one
+        self.assertEqual(formatDuration(0.9999), "1 s")
+        self.assertEqual(formatDuration(0.0009999), "1 ms")
+        self.assertEqual(formatDuration(9.9999e-07), "1 us")
+
+        # each unit boundary lands on the larger unit, not 1000 of the smaller
+        self.assertEqual(formatDuration(1e-3), "1 ms")
+        self.assertEqual(formatDuration(1e-6), "1 us")
+        self.assertEqual(formatDuration(1e-9), "1 ns")
 
 
 if __name__ == "__main__":
