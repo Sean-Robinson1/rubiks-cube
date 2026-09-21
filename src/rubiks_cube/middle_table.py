@@ -78,6 +78,10 @@ for _a, _b in NONWHITE_SLOTS:
 # slot's place value is folded into the table, so encode only has to sum the contributions it
 # finds. A slot holding a yellow or white edge will not match, and is skipped.
 _MIDDLE_STICKERS = operator.itemgetter(*[p for pair in NONWHITE_SLOTS for p in pair])
+
+# one gather per wide-key group, on the same reasoning as corner_table.py
+_MIDDLE_GROUPS = tuple(operator.itemgetter(*[p for pair in NONWHITE_SLOTS[i:i + 2] for p in pair])
+                       for i in range(0, len(NONWHITE_SLOTS), 2))
 _POW16 = (16**3, 16**2, 16, 1)  # place value of each colour bucket (bucket 0 is the most significant)
 _MIDDLE_SLOT_LUT = []
 for _slot in range(len(NONWHITE_SLOTS)):
@@ -113,9 +117,10 @@ def encodeMiddles(state: str) -> int:
     Returns:
         int: The encoded middle-edge state.
     """
-    m = _MIDDLE_STICKERS(state)
-    return (_MIDDLE_GROUP_LUT[0].get(m[0:4], 0) + _MIDDLE_GROUP_LUT[1].get(m[4:8], 0)
-            + _MIDDLE_GROUP_LUT[2].get(m[8:12], 0) + _MIDDLE_GROUP_LUT[3].get(m[12:16], 0))
+    return (_MIDDLE_GROUP_LUT[0].get(_MIDDLE_GROUPS[0](state), 0)
+            + _MIDDLE_GROUP_LUT[1].get(_MIDDLE_GROUPS[1](state), 0)
+            + _MIDDLE_GROUP_LUT[2].get(_MIDDLE_GROUPS[2](state), 0)
+            + _MIDDLE_GROUP_LUT[3].get(_MIDDLE_GROUPS[3](state), 0))
 
 
 def buildTable():

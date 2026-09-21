@@ -86,6 +86,11 @@ for _slot, _tri in enumerate(CORNERS):
 # value is folded into the table, so encode only has to sum the contributions it finds. A slot
 # holding a yellow corner will not match, and is skipped.
 _CORNER_STICKERS = operator.itemgetter(*[p for tri in CORNERS for p in tri])
+
+# one gather per wide-key group, reading that group's six stickers straight out of the state.
+# Gathering all 24 and slicing instead allocated a throwaway tuple per group, four an encode.
+_CORNER_GROUPS = tuple(operator.itemgetter(*[p for tri in CORNERS[i:i + 2] for p in tri])
+                       for i in range(0, len(CORNERS), 2))
 _POW24 = (24**3, 24**2, 24, 1)  # place value of each colour bucket (bucket 0 is the most significant)
 _CORNER_SLOT_LUT = []
 for _slot in range(len(CORNERS)):
@@ -127,9 +132,10 @@ def encodeCorners(state: str) -> int:
     Returns:
         int: The encoded white-corner state.
     """
-    c = _CORNER_STICKERS(state)
-    return (_CORNER_GROUP_LUT[0].get(c[0:6], 0) + _CORNER_GROUP_LUT[1].get(c[6:12], 0)
-            + _CORNER_GROUP_LUT[2].get(c[12:18], 0) + _CORNER_GROUP_LUT[3].get(c[18:24], 0))
+    return (_CORNER_GROUP_LUT[0].get(_CORNER_GROUPS[0](state), 0)
+            + _CORNER_GROUP_LUT[1].get(_CORNER_GROUPS[1](state), 0)
+            + _CORNER_GROUP_LUT[2].get(_CORNER_GROUPS[2](state), 0)
+            + _CORNER_GROUP_LUT[3].get(_CORNER_GROUPS[3](state), 0))
 
 
 def buildTable():
