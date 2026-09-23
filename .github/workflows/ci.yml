@@ -25,3 +25,25 @@ jobs:
 
       - name: Run benchmark / CI test
         run: python tests/ci_test.py
+      # shown on the run's Summary page. runs even when a test failed, since that's when it's wanted
+      - name: Scanner summary
+        if: ${{ !cancelled() }}
+        run: |
+          python tests/scanner_images.py
+          python tests/scanner_images.py --standard
+          {
+            echo "### Scanner, SCAN_COLOURS camera"
+            echo '```'; cat tests/scanner_images/summary.txt; echo '```'
+            echo "### Scanner, standard cube colours"
+            echo '```'; cat tests/scanner_images_standard/summary.txt; echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload scanner images
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: scanner-images
+          path: |
+            tests/scanner_images/
+            tests/scanner_images_standard/
+          retention-days: 30
