@@ -52,7 +52,7 @@ _TABLE_PATH = os.path.join(os.path.dirname(__file__), "data", "corner_table.bin"
 
 
 _macros = None
-_inverseMacros = None
+_inverseMacros: list[str] = []
 
 
 def macros() -> tuple[list, list]:
@@ -170,13 +170,13 @@ def buildPaths(table=None) -> dict:
                           lambda macro: inverseMacros[macro])
 
 
-def _loadPaths() -> list | None:
-    """Loads the packed corner paths, or None if the file isn't there yet."""
+def _loadPaths() -> list:
+    """Loads the packed corner paths, or an empty list if the file isn't there yet."""
     try:
         with open(_PATHS_PATH, "rb") as handle:
             return deserialisePaths(handle.read(), TABLE_SIZE)
     except FileNotFoundError:
-        return None
+        return []
 
 
 CORNER_PATHS = _loadPaths()

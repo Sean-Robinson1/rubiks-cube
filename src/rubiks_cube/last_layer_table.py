@@ -65,7 +65,7 @@ TRACKED_STICKERS = ([p for tri in LL_CORNERS for p in tri] + [p for pair in LL_E
 MACRO_HALF_DEPTH = 4
 
 _macros = None
-_inverseMacros = None
+_inverseMacros: list[str] = []
 
 
 def macros() -> tuple[list, list]:
@@ -273,8 +273,8 @@ def buildPaths(table=None) -> dict:
                           lambda macro: inverseMacros[macro], keyFn=LAST_LAYER_KEY)
 
 
-def _loadPaths() -> dict | None:
-    """Loads the packed last-layer paths, or None if the file is missing.
+def _loadPaths() -> dict:
+    """Loads the packed last-layer paths, or an empty dict if the file is missing.
 
     What comes back maps each sticker key straight to its move labels - the stage's solutions carry
     no permutation, since finishing the last layer finishes the cube.
@@ -283,7 +283,7 @@ def _loadPaths() -> dict | None:
         with open(_PATHS_PATH, "rb") as handle:
             return deserialiseKeyedPaths(handle.read(), _LL_KEY_LENGTH)
     except FileNotFoundError:
-        return None
+        return {}
 
 
 LAST_LAYER_PATHS = _loadPaths()

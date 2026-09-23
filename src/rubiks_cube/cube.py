@@ -14,7 +14,7 @@ from .cube_utils import (MOVE_LABELS, applyMoveLabels, checkMask, formatDuration
 
 
 class Cube:
-    def __init__(self, startStr: str = None) -> None:
+    def __init__(self, startStr: str | None = None) -> None:
         """Initialises a Cube object.
 
         Args:
@@ -61,7 +61,7 @@ class Cube:
         s = self.state
         return [[[s[face * 9 + row * 3 + col] for col in range(3)] for row in range(3)] for face in range(6)]
 
-    def initialiseFaces(self, faceStr: str = None) -> None:
+    def initialiseFaces(self, faceStr: str | None = None) -> None:
         """Initialises the cube's state from a string representation.
 
         Args:
@@ -125,11 +125,11 @@ class Cube:
                     outputList.append(PLOTTING_COLOUR_MAP[square])
         return outputList
 
-    def displayCube(self, faces: list[list[str]] = None) -> None:
+    def displayCube(self, faces: list[list[list[str]]] | None = None) -> None:
         """Displays the cube in the console. If no faces are provided, the current state of the cube is displayed.
 
         Args:
-            faces (list[list[str]], optional): A 2D list representing the cube's faces. Defaults to None.
+            faces (list[list[list[str]]], optional): A 6x3x3 list representing the cube's faces. Defaults to None.
         """
         if faces is None:
             faces = self.faces
@@ -335,7 +335,7 @@ class Cube:
         Returns:
             str: The colour of the opposite face.
         """
-        return OPPOSITE_FACE_MAPPING.get(colour)
+        return OPPOSITE_FACE_MAPPING[colour]
 
     def getLeftFace(self, colour: str) -> str:
         """Returns the left face relative to the given face colour.
@@ -348,7 +348,7 @@ class Cube:
         Returns:
             str: The colour of the left face.
         """
-        return LEFT_FACE_MAPPING.get(colour)
+        return LEFT_FACE_MAPPING[colour]
 
     def getRightFace(self, colour: str) -> str:
         """Returns the right face relative to the given face colour.
@@ -361,7 +361,7 @@ class Cube:
         Returns:
             str: The colour of the right face.
         """
-        return RIGHT_FACE_MAPPING.get(colour)
+        return RIGHT_FACE_MAPPING[colour]
 
     def getMoveRelative(self, move: str) -> str:
         """Returns the move relative to the current front and top faces.

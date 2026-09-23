@@ -117,7 +117,7 @@ CROSS_TABLE = _loadTable()
 _PATHS_PATH = os.path.join(os.path.dirname(__file__), "data", "cross_paths.bin")
 
 
-def buildPaths(table: bytearray = None) -> dict:
+def buildPaths(table: bytearray | None = None) -> dict:
     """Builds the full-solution table: every cross state -> (permutation, move labels) solving it."""
     if table is None:
         table = buildTable()
@@ -125,13 +125,13 @@ def buildPaths(table: bytearray = None) -> dict:
                           lambda move: POSSIBLE_ROTATIONS[move])
 
 
-def _loadPaths() -> list | None:
-    """Reads back the packed cross paths, or None if they haven't been built yet."""
+def _loadPaths() -> list:
+    """Reads back the packed cross paths, or an empty list if they haven't been built yet."""
     try:
         with open(_PATHS_PATH, "rb") as handle:
             return deserialisePaths(handle.read(), TABLE_SIZE)
     except FileNotFoundError:
-        return None
+        return []
 
 
 CROSS_PATHS = _loadPaths()

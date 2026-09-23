@@ -46,7 +46,7 @@ _TABLE_PATH = os.path.join(os.path.dirname(__file__), "data", "middle_table.bin"
 
 
 _macros = None
-_inverseMacros = None
+_inverseMacros: list[str] = []
 
 
 def macros() -> tuple[list, list]:
@@ -155,13 +155,13 @@ def buildPaths(table=None) -> dict:
                           lambda macro: inverseMacros[macro])
 
 
-def _loadPaths() -> list | None:
-    """Loads the packed middle paths, or None if they haven't been genrated yet."""
+def _loadPaths() -> list:
+    """Loads the packed middle paths, or an empty list if they haven't been genrated yet."""
     try:
         with open(_PATHS_PATH, "rb") as handle:
             return deserialisePaths(handle.read(), TABLE_SIZE)
     except FileNotFoundError:
-        return None
+        return []
 
 
 MIDDLE_PATHS = _loadPaths()

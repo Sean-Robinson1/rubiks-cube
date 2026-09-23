@@ -545,7 +545,7 @@ def deserialisePaths(data: bytes, tableSize: int) -> list:
         list: Maps each index to its permutation and the labels of the moves solving it, None where
         a state is unreachable or already solved.
     """
-    paths = [None] * tableSize
+    paths: list[tuple[tuple[int, ...], tuple[str, ...]] | None] = [None] * tableSize
     pos = 0
     n = len(data)
     while pos < n:
