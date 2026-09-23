@@ -31,4 +31,7 @@ rubiks_cube = ["data/*.bin"]
 
 [tool.pyright]
 pythonVersion = "3.10"
+# the project venv locally; CI has no .venv and falls back to its only python
+venvPath = "."
+venv = ".venv"
 include = ["src", "tests", "profile_solve.py"]

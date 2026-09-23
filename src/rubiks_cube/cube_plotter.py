@@ -1,7 +1,10 @@
+from typing import cast
+
 import matplotlib.pyplot as plt
 import numpy as np
 from matplotlib.animation import FuncAnimation
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
+from mpl_toolkits.mplot3d import Axes3D
 from mpl_toolkits.mplot3d.art3d import Poly3DCollection
 
 from .constants import AXIS_MAP, CENTER_ORDERINGS, FACE_CENTER_POSITIONS
@@ -19,7 +22,9 @@ class CubePlotter:
         Returns:
             tuple[plt.Figure, Axes3D]: The figure and 3D axis.
         """
-        self.fig, self.ax = plt.subplots(subplot_kw={"projection": "3d"})
+        self.fig, ax = plt.subplots(subplot_kw={"projection": "3d"})
+        # subplots is typed as returning a plain Axes whatever the projection
+        self.ax = cast(Axes3D, ax)
 
     def makePlane(
         self,
