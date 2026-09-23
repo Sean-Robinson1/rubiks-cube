@@ -7,10 +7,9 @@ import time
 from .constants import *
 from .corner_table import CORNER_PATHS, encodeCorners
 from .cross_table import CROSS_PATHS, encodeCross
+from .cube_utils import MOVE_LABELS, applyMoveLabels, checkMask, formatDuration, optimiseMoves, printAnalysis, rotate
+from .last_layer_table import LAST_LAYER_KEY, LAST_LAYER_PATHS
 from .middle_table import MIDDLE_PATHS, encodeMiddles
-from .last_layer_table import LAST_LAYER_PATHS, LAST_LAYER_KEY
-from .cube_utils import (MOVE_LABELS, applyMoveLabels, checkMask, formatDuration, optimiseMoves,
-                         printAnalysis, rotate)
 
 
 class Cube:

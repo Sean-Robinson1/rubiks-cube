@@ -23,7 +23,20 @@ from .cube_utils import buildPathTable, deserialisePaths, rotate, serialisePaths
 # edge's two stickers always move together, so starting from every cross-face sticker pair and
 # pruning any pair whose image under some move isn't also a pair converges to exactly these 12.
 # White edges are the four with a sticker on the white face (indices 0-8).
-EDGES = [(1, 37), (3, 10), (5, 28), (7, 19), (12, 41), (14, 21), (16, 48), (23, 30), (25, 46), (32, 39), (34, 50), (43, 52)]
+EDGES = [
+    (1, 37),
+    (3, 10),
+    (5, 28),
+    (7, 19),
+    (12, 41),
+    (14, 21),
+    (16, 48),
+    (23, 30),
+    (25, 46),
+    (32, 39),
+    (34, 50),
+    (43, 52),
+]
 
 # the four non-white colours of the cross edges, in a fixed order used to pack the encoding
 CROSS_COLOURS = "GRBO"
@@ -50,7 +63,7 @@ def encodeCross(state: str) -> int:
 
         slot * 2 + orientiation = 11 * 2 + 1 = 23
 
-    (given 0 indexing). This allows us to represnt the state as a base 24 number.  
+    (given 0 indexing). This allows us to represnt the state as a base 24 number.
 
     Args:
         state (str): The 54-character cube state string.
@@ -121,8 +134,9 @@ def buildPaths(table: bytearray | None = None) -> dict:
     """Builds the full-solution table: every cross state -> (permutation, move labels) solving it."""
     if table is None:
         table = buildTable()
-    return buildPathTable(SOLVED_MASK, encodeCross, table, NO_MOVE, POSSIBLE_ROTATIONS, rotate,
-                          lambda move: POSSIBLE_ROTATIONS[move])
+    return buildPathTable(
+        SOLVED_MASK, encodeCross, table, NO_MOVE, POSSIBLE_ROTATIONS, rotate, lambda move: POSSIBLE_ROTATIONS[move]
+    )
 
 
 def _loadPaths() -> list:

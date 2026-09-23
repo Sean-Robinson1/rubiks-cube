@@ -24,8 +24,15 @@ import operator
 import os
 
 from .constants import SOLVED_MASK
-from .cube_utils import (applyMoves, buildPathTable, buildStageTable, deserialiseKeyedPaths,
-                         invertMove, loadStageTable, serialiseKeyedPaths)
+from .cube_utils import (
+    applyMoves,
+    buildPathTable,
+    buildStageTable,
+    deserialiseKeyedPaths,
+    invertMove,
+    loadStageTable,
+    serialiseKeyedPaths,
+)
 from .macro_enumeration import enumerateMacros
 
 # the four last-layer (yellow/bottom) corner and edge slots, as sticker-index tuples. For every
@@ -61,7 +68,7 @@ def _strictNeutral(tokens: list[str]) -> bool:
 
 # A last-layer macro's effect is decided by the 20 last-layer stickers; everything else is preserved.
 # macros run up to twice this depth, which reaches the length-8 algorithms the layer needs.
-TRACKED_STICKERS = ([p for tri in LL_CORNERS for p in tri] + [p for pair in LL_EDGES for p in pair])
+TRACKED_STICKERS = [p for tri in LL_CORNERS for p in tri] + [p for pair in LL_EDGES for p in pair]
 MACRO_HALF_DEPTH = 4
 
 _macros = None
@@ -142,7 +149,7 @@ for _slot in range(4):
     for _cc, _cid in _LL_CORNER_PAIR.items():  # _cc is a 2-char string of the two non-yellow colours
         _c1, _c2 = _cc[0], _cc[1]
         _keyPart = _cid * _KEYPLACE[_slot]
-        _lut[("Y", _c1, _c2)] = (_keyPart, 0)                 # yellow sticker first  -> pos 0
+        _lut[("Y", _c1, _c2)] = (_keyPart, 0)  # yellow sticker first  -> pos 0
         _lut[(_c1, "Y", _c2)] = (_keyPart, 1 * _POW3[_slot])  # yellow sticker middle -> pos 1
         _lut[(_c1, _c2, "Y")] = (_keyPart, 2 * _POW3[_slot])  # yellow sticker last   -> pos 2
     _LL_CORNER_LUT.append(_lut)
@@ -155,7 +162,7 @@ for _slot in range(4):
     for _colour, _eid in _EDGE_ID.items():
         _keyPart = _eid * _KEYPLACE[_slot]
         _lut[(_colour, "Y")] = (_keyPart, _POW2[_slot])  # yellow on the yellow-face side -> flipped
-        _lut[("Y", _colour)] = (_keyPart, 0)             # yellow on the other side       -> not flipped
+        _lut[("Y", _colour)] = (_keyPart, 0)  # yellow on the other side       -> not flipped
     _LL_EDGE_LUT.append(_lut)
 
 
@@ -269,8 +276,16 @@ def buildPaths(table=None) -> dict:
     if table is None:
         table = buildTable()
     stageMacros, inverseMacros = macros()
-    return buildPathTable(SOLVED_MASK, _cachedEncode(), table, NO_MACRO, stageMacros, applyMoves,
-                          lambda macro: inverseMacros[macro], keyFn=LAST_LAYER_KEY)
+    return buildPathTable(
+        SOLVED_MASK,
+        _cachedEncode(),
+        table,
+        NO_MACRO,
+        stageMacros,
+        applyMoves,
+        lambda macro: inverseMacros[macro],
+        keyFn=LAST_LAYER_KEY,
+    )
 
 
 def _loadPaths() -> dict:

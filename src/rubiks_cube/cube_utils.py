@@ -233,7 +233,7 @@ def buildGroupLUT(slotLUT: list, slotKeys, groupSize: int = 2) -> list:
     """
     groups = []
     for start in range(0, len(slotLUT), groupSize):
-        members = slotLUT[start:start + groupSize]
+        members = slotLUT[start : start + groupSize]
         combined = {}
         for combo in itertools.product(slotKeys, repeat=len(members)):
             key = tuple(itertools.chain.from_iterable(combo))
@@ -426,8 +426,7 @@ def buildStageTable(solvedState, encodeFn, tableSize, sentinel, macros):
     return table
 
 
-def buildPathTable(solvedState, encodeFn, table, sentinel, generators, applyGen, stepString,
-                   keyFn=None) -> dict:
+def buildPathTable(solvedState, encodeFn, table, sentinel, generators, applyGen, stepString, keyFn=None) -> dict:
     """Builds a stage's full-solution table from its (already-proven) single-step table.
 
     Enumerates every reachable state by BFS over generators, then for each state follows
@@ -551,11 +550,11 @@ def deserialisePaths(data: bytes, tableSize: int) -> list:
     while pos < n:
         idx = struct.unpack_from("<I", data, pos)[0]
         pos += 4
-        permutation = tuple(data[pos:pos + 54])
+        permutation = tuple(data[pos : pos + 54])
         pos += 54
         count = data[pos]
         pos += 1
-        labels = tuple(MOVE_LABELS[code] for code in data[pos:pos + count])
+        labels = tuple(MOVE_LABELS[code] for code in data[pos : pos + count])
         pos += count
         paths[idx] = (permutation, labels)
     return paths
@@ -607,11 +606,11 @@ def deserialiseKeyedPaths(data: bytes, keyLength: int) -> dict:
     pos = 0
     n = len(data)
     while pos < n:
-        key = tuple(chr(b) for b in data[pos:pos + keyLength])
+        key = tuple(chr(b) for b in data[pos : pos + keyLength])
         pos += keyLength
         count = data[pos]
         pos += 1
-        paths[key] = tuple(MOVE_LABELS[code] for code in data[pos:pos + count])
+        paths[key] = tuple(MOVE_LABELS[code] for code in data[pos : pos + count])
         pos += count
     return paths
 

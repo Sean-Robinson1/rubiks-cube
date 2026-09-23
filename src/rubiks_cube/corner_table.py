@@ -21,8 +21,16 @@ import os
 
 from .constants import SOLVED_MASK
 from .cross_table import EDGES
-from .cube_utils import (applyMoves, buildGroupLUT, buildPathTable, buildStageTable,
-                         deserialisePaths, invertMove, loadStageTable, serialisePaths)
+from .cube_utils import (
+    applyMoves,
+    buildGroupLUT,
+    buildPathTable,
+    buildStageTable,
+    deserialisePaths,
+    invertMove,
+    loadStageTable,
+    serialisePaths,
+)
 from .macro_enumeration import enumerateMacros
 
 # The 8 corner cubies as (sticker index, ...) triples, derived from the rotation mappings the same
@@ -68,8 +76,7 @@ def macros() -> tuple[list, list]:
     """
     global _macros, _inverseMacros
     if _macros is None:
-        _macros = enumerateMacros(PRESERVED_STICKERS, TRACKED_STICKERS, MACRO_HALF_DEPTH,
-                                  MACRO_MAX_LENGTH)
+        _macros = enumerateMacros(PRESERVED_STICKERS, TRACKED_STICKERS, MACRO_HALF_DEPTH, MACRO_MAX_LENGTH)
         _inverseMacros = ["".join(invertMove(m) for m in reversed(seq)) for seq in _macros]
     return _macros, _inverseMacros
 
@@ -89,8 +96,9 @@ _CORNER_STICKERS = operator.itemgetter(*[p for tri in CORNERS for p in tri])
 
 # one gather per wide-key group, reading that group's six stickers straight out of the state.
 # Gathering all 24 and slicing instead allocated a throwaway tuple per group, four an encode.
-_CORNER_GROUPS = tuple(operator.itemgetter(*[p for tri in CORNERS[i:i + 2] for p in tri])
-                       for i in range(0, len(CORNERS), 2))
+_CORNER_GROUPS = tuple(
+    operator.itemgetter(*[p for tri in CORNERS[i : i + 2] for p in tri]) for i in range(0, len(CORNERS), 2)
+)
 _POW24 = (24**3, 24**2, 24, 1)  # place value of each colour bucket (bucket 0 is the most significant)
 _CORNER_SLOT_LUT = []
 for _slot in range(len(CORNERS)):
@@ -114,8 +122,7 @@ for _slot in range(len(CORNERS)):
 # corner cubie's three colours - a superset of its three physical orientations, so no key is missed
 # (impossible orderings never occur, so their group entries are harmless). A yellow corner is absent
 # from _CORNER_SLOT_LUT and contributes 0, exactly as the per-slot loop skipped it.
-_CORNER_SLOT_KEYS = {perm for _tri in CORNERS
-                     for perm in itertools.permutations(SOLVED_MASK[p] for p in _tri)}
+_CORNER_SLOT_KEYS = {perm for _tri in CORNERS for perm in itertools.permutations(SOLVED_MASK[p] for p in _tri)}
 _CORNER_GROUP_LUT = buildGroupLUT(_CORNER_SLOT_LUT, _CORNER_SLOT_KEYS)
 
 
@@ -132,10 +139,12 @@ def encodeCorners(state: str) -> int:
     Returns:
         int: The encoded white-corner state.
     """
-    return (_CORNER_GROUP_LUT[0].get(_CORNER_GROUPS[0](state), 0)
-            + _CORNER_GROUP_LUT[1].get(_CORNER_GROUPS[1](state), 0)
-            + _CORNER_GROUP_LUT[2].get(_CORNER_GROUPS[2](state), 0)
-            + _CORNER_GROUP_LUT[3].get(_CORNER_GROUPS[3](state), 0))
+    return (
+        _CORNER_GROUP_LUT[0].get(_CORNER_GROUPS[0](state), 0)
+        + _CORNER_GROUP_LUT[1].get(_CORNER_GROUPS[1](state), 0)
+        + _CORNER_GROUP_LUT[2].get(_CORNER_GROUPS[2](state), 0)
+        + _CORNER_GROUP_LUT[3].get(_CORNER_GROUPS[3](state), 0)
+    )
 
 
 def buildTable():
@@ -166,8 +175,9 @@ def buildPaths(table=None) -> dict:
     if table is None:
         table = buildTable()
     stageMacros, inverseMacros = macros()
-    return buildPathTable(SOLVED_MASK, encodeCorners, table, NO_MACRO, stageMacros, applyMoves,
-                          lambda macro: inverseMacros[macro])
+    return buildPathTable(
+        SOLVED_MASK, encodeCorners, table, NO_MACRO, stageMacros, applyMoves, lambda macro: inverseMacros[macro]
+    )
 
 
 def _loadPaths() -> list:
