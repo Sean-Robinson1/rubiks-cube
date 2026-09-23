@@ -176,3 +176,78 @@ def bgr2rgb(col: np.ndarray) -> np.ndarray:
         tuple[float, float, float]: The RGB colour.
     """
     return np.array([col[2], col[1], col[0]])
+
+
+def readFace(frame: np.ndarray, faceColours: list, output: np.ndarray | None = None) -> list[str] | None:
+    """Looks for a cube face in a camera frame and reads its nine colours.
+
+    Args:
+        frame (np.ndarray): The BGR camera frame.
+        faceColours (list): (name, rgb) pairs to classify the stickers against.
+        output (np.ndarray, optional): If given, the found stickers and face are drawn onto it.
+
+    Returns:
+        list[str] | None: The colour name of each of the nine stickers, or None if no face was found.
+    """
+    # manipulating image to scan contours
+    grayed = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+    blurred = cv2.GaussianBlur(grayed, (5, 5), cv2.BORDER_DEFAULT)
+    canny = cv2.Canny(blurred, 20, 40)
+    kernel = np.ones((3, 3), np.uint8)
+    dilated = cv2.dilate(canny, kernel, iterations=2)
+    dilatedFrame = dilated
+
+    contours, _ = cv2.findContours(dilatedFrame.copy(), cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
+    contours = sorted(contours, key=cv2.contourArea, reverse=True)
+
+    counter = 30
+    faceContours = []
+    totalWidth = 0
+    # filtering out non-square contours
+    for c in contours:
+        peri = cv2.arcLength(c, True)
+        approx = cv2.approxPolyDP(c, 0.05 * peri, True)
+        minX, minY, width, height = cv2.boundingRect(approx)
+        aspectRatio = width / height
+        if len(approx) == 4 and 2000 > cv2.contourArea(approx) > 300 and 0.8 < aspectRatio < 1.2:
+            counter -= 1
+            if counter == 0:
+                break
+            totalWidth += width
+            faceContours.append(approx)
+
+    if len(faceContours) > 3:
+        faceContours = filterContours(faceContours, (totalWidth / len(faceContours)) * 4)
+        avgArea = sum([cv2.contourArea(faceContours[i]) for i in range(len(faceContours))]) / len(faceContours)
+
+        faceCornersX = []
+        faceCornersY = []
+        for i in range(len(faceContours)):
+            if avgArea * 0.7 < cv2.contourArea(faceContours[i]) < 1.3 * avgArea:
+                for ii in range(4):
+                    faceCornersX.append(faceContours[i][ii][0][0])
+                    faceCornersY.append(faceContours[i][ii][0][1])
+
+                if output is not None:
+                    cv2.drawContours(output, [faceContours[i]], -1, (255, 0, 0), 5)
+
+        # checking if there are enough corners to make a square
+        if len(faceCornersX) > 4 and len(faceCornersY) > 4:
+            maxX, maxY = max(faceCornersX), max(faceCornersY)
+            minX, minY = min(faceCornersX), min(faceCornersY)
+
+            areaRect = (maxX - minX) * (maxY - minY)
+
+            if areaRect * 0.45 < avgArea * 9 < areaRect * 1.1:
+                # checking if the rectangle is roughly square
+                if (maxX - minX) * 0.8 < maxY - minY < 1.2 * (maxX - minX):
+                    if output is not None:
+                        cv2.rectangle(output, (minX, minY), (maxX, maxY), (0, 0, 255), 3)
+
+                    cropped = frame[minY:maxY, minX:maxX]
+                    colours = extractColours(cropped, faceColours)
+
+                    logging.info(f"Detected colours: {colours}")
+
+                    return colours
+    return None
