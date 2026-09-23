@@ -9,7 +9,8 @@ from .corner_table import CORNER_PATHS, encodeCorners
 from .cross_table import CROSS_PATHS, encodeCross
 from .middle_table import MIDDLE_PATHS, encodeMiddles
 from .last_layer_table import LAST_LAYER_PATHS, LAST_LAYER_KEY
-from .cube_utils import checkMask, formatDuration, optimiseMoves, printAnalysis, rotate
+from .cube_utils import (MOVE_LABELS, applyMoveLabels, checkMask, formatDuration, optimiseMoves,
+                         printAnalysis, rotate)
 
 
 class Cube:
@@ -165,20 +166,16 @@ class Cube:
     def randomise(self) -> list[str]:
         """Randomises the cube to a valid state by performing a series of random moves.
 
+        Every move is a real face turn applied to the current state, so the result is always a
+        reachable cube. The moves are drawn in one call and applied as chained gathers rather than
+        being formatted into a string for executeSequence to parse back out a character at a time.
+
         Returns:
             list[str]: The sequence of moves used to randomise the cube.
         """
-        turns = ["R", "L", "U", "D", "F", "B"]
-        sequence = []
-        for _ in range(50):
-            move = turns[random.randint(0, 5)]
-
-            if random.random() > 0.5:
-                move += "i"
-
-            sequence.append(move)
-
-        self.executeSequence("".join(sequence))
+        sequence = random.choices(MOVE_LABELS, k=50)
+        self.state = applyMoveLabels(self.state, sequence)
+        self.movesMade.extend(sequence)
         return sequence
 
     def workBackwards(self, sequence: list[str]) -> None:

@@ -35,6 +35,9 @@ def rotate(mask: str, rotation: str) -> str:
 def applyMoves(state: str, moves) -> str:
     """Applies a list of already-split moves to a state.
 
+    The gathers are chained and joined once at the end rather than per move: itemgetter takes a
+    tuple as happily as a string, so the intermediate states never need to be strings.
+
     Args:
         state (str): The state to apply the moves to.
         moves: An iterable of rotations, e.g. ["R", "D'", "R'"].
@@ -43,8 +46,8 @@ def applyMoves(state: str, moves) -> str:
         str: The state after the moves have been applied.
     """
     for move in moves:
-        state = rotate(state, move)
-    return state
+        state = _ROTATION_GETTERS[move](state)
+    return "".join(state)
 
 
 def invertMove(move: str) -> str:
@@ -248,6 +251,25 @@ _PATH_PROBE = "".join(chr(33 + i) for i in range(54))
 # the 12 possible recorded move labels, in a fixed order; the index is the on-disk code for the label
 MOVE_LABELS = [face + direction for face in "UDFBLR" for direction in ("", "i")]
 _LABEL_TO_CODE = {label: code for code, label in enumerate(MOVE_LABELS)}
+
+# the rotation getters again, keyed by those labels, so a recorded move list can be applied without
+# translating "Ri" back into "R'" first
+_LABEL_GETTERS = {label: _ROTATION_GETTERS[label[0] + ("'" if label[1:] else "")] for label in MOVE_LABELS}
+
+
+def applyMoveLabels(state: str, labels) -> str:
+    """Applies a list of recorded move labels to a state, as applyMoves does for rotations.
+
+    Args:
+        state (str): The state to apply the moves to.
+        labels: An iterable of move labels, e.g. ["R", "Di", "Ri"].
+
+    Returns:
+        str: The state after the moves have been applied.
+    """
+    for label in labels:
+        state = _LABEL_GETTERS[label](state)
+    return "".join(state)
 
 
 def _parseMoves(sequence: str):
