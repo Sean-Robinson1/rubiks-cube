@@ -1,3 +1,4 @@
+import random
 import unittest
 
 from rubiks_cube.constants import SOLVED_MASK
@@ -5,6 +6,10 @@ from rubiks_cube.cube import Cube
 
 
 class TestCubeNonSolver(unittest.TestCase):
+    def setUp(self):
+        # fixed seed so a failure from randomise() can be reproduced
+        random.seed(0)
+
     def test_str(self):
         cube = Cube()
         self.assertTrue(str(cube) == SOLVED_MASK)
