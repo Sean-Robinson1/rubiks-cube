@@ -1,15 +1,20 @@
 """Synthetic webcam frames of a cube face, for testing readFace without a camera.
 
-Run it to write every case out as a png plus a contact sheet with what readFace made of each:
+Run it to write every case out as pngs, split into passed/ and failed/, plus a contact sheet and a
+summary.txt of what readFace made of them:
 
-    python tests/scanner_images.py [outdir]
+    python tests/scanner_images.py [outdir] [--standard]
+
+--standard draws the stickers in STANDARD_RGB instead of the SCAN_COLOURS camera's colours, and
+writes to scanner_images_standard/ by default. The knownIssue notes are written for the default
+palette, so they're dropped there.
 
 pngs are gitignored, so the tests build the frames in memory instead of loading files.
 """
 
 import os
 import sys
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 
 import cv2
 import numpy as np
@@ -18,9 +23,22 @@ from rubiks_cube.constants import SCAN_COLOURS
 
 FRAME_W, FRAME_H = 640, 480
 
+# where the script writes its output, and where the tests refresh summary.txt
+DEFAULT_DIR = os.path.join(os.path.dirname(__file__), "scanner_images")
+
 # stickers as the camera behind SCAN_COLOURS saw them, so the baseline tests the pipeline rather
 # than the reference values. RGB
 STICKER_RGB = {name: tuple(int(round(v)) for v in rgb) for name, rgb in SCAN_COLOURS}
+
+# commonly quoted colours for a standard cube, RGB
+STANDARD_RGB = {
+    "White": (255, 255, 255),
+    "Yellow": (255, 213, 0),
+    "Red": (183, 18, 52),
+    "Orange": (255, 88, 0),
+    "Blue": (0, 70, 173),
+    "Green": (0, 155, 72),
+}
 
 # a more saturated camera. its yellow sits nearer SCAN_COLOURS orange than SCAN_COLOURS yellow
 OTHER_CAMERA_RGB = {
@@ -70,11 +88,23 @@ CASES = [
         knownIssue="sticker area limits are absolute pixels (300-2000), a close face is over",
     ),
     Case("offCentre", "near the top left of the frame", centre=(160, 130)),
-    Case("tilt10", "rotated 10 degrees", rotation=10, knownIssue="face crop is an axis aligned box, and cells straddling two colours read differently per kmeans seed"),
+    Case(
+        "tilt10",
+        "rotated 10 degrees",
+        rotation=10,
+        knownIssue="axis aligned face crop, and cells straddling two colours vary with the kmeans seed",
+    ),
     Case("tilt30", "rotated 30 degrees", rotation=30, knownIssue="face crop is an axis aligned box"),
-    Case("perspective", "viewed from slightly below", skew=0.15, knownIssue="face crop is an axis aligned box, and cells straddling two colours read differently per kmeans seed"),
+    Case(
+        "perspective",
+        "viewed from slightly below",
+        skew=0.15,
+        knownIssue="axis aligned face crop, and cells straddling two colours vary with the kmeans seed",
+    ),
     Case("dim", "dark room", brightness=0.45, knownIssue="fixed RGB references, nothing normalises brightness"),
-    Case("bright", "overexposed", brightness=1.35, knownIssue="fixed RGB references, washed out yellow is nearer white"),
+    Case(
+        "bright", "overexposed", brightness=1.35, knownIssue="fixed RGB references, washed out yellow is nearer white"
+    ),
     Case(
         "warmLight",
         "tungsten bulb colour cast",
@@ -174,6 +204,89 @@ def render(case: Case, seed: int = 0) -> np.ndarray:
     return img
 
 
+def drawReading(output: np.ndarray, case: Case, read: list[str] | None) -> None:
+    """Draws what readFace read next to what it should have, bottom left, crossing out wrong stickers."""
+    from rubiks_cube.constants import USUAL_COLOUR_VALUES
+
+    cell, pad = 22, 10
+    grid = cell * 3
+    x0, y0 = pad, FRAME_H - grid - 44
+    cv2.rectangle(output, (x0 - 6, y0 - 22), (x0 + 2 * grid + pad + 6, FRAME_H - 6), (245, 245, 245), -1)
+    for gx, title, names in ((x0, "read", read), (x0 + grid + pad, "want", case.stickers)):
+        cv2.putText(output, title, (gx, y0 - 7), cv2.FONT_HERSHEY_SIMPLEX, 0.45, (30, 30, 30), 1, cv2.LINE_AA)
+        if names is None:
+            cv2.putText(output, "no face", (gx, y0 + 35), cv2.FONT_HERSHEY_SIMPLEX, 0.4, (30, 30, 200), 1, cv2.LINE_AA)
+            continue
+        for i, name in enumerate(names):
+            row, col = divmod(i, 3)
+            x, y = gx + col * cell, y0 + row * cell
+            cv2.rectangle(output, (x, y), (x + cell - 2, y + cell - 2), USUAL_COLOUR_VALUES[name], -1)
+            cv2.putText(output, name[0], (x + 3, y + 15), cv2.FONT_HERSHEY_SIMPLEX, 0.4, (0, 0, 0), 1, cv2.LINE_AA)
+            if names is read and name != case.stickers[i]:
+                # small badge in the corner, so the colour underneath stays readable
+                bx, by, b = x + cell - 9, y, 7
+                cv2.rectangle(output, (bx, by), (bx + b, by + b), (255, 255, 255), -1)
+                cv2.line(output, (bx + 1, by + 1), (bx + b - 1, by + b - 1), (0, 0, 0), 1)
+                cv2.line(output, (bx + b - 1, by + 1), (bx + 1, by + b - 1), (0, 0, 0), 1)
+    ok = read == case.stickers
+    verdict = "PASS" if ok else "FAIL" + (" (known)" if case.knownIssue else "")
+    cv2.putText(
+        output,
+        verdict,
+        (x0, FRAME_H - 14),
+        cv2.FONT_HERSHEY_SIMPLEX,
+        0.5,
+        (40, 150, 40) if ok else (30, 30, 200),
+        1,
+        cv2.LINE_AA,
+    )
+
+
+def summaryText(results: list[tuple[Case, list[str] | None]]) -> str:
+    """Aggregate numbers for a run: outcomes, sticker accuracy, a colour confusion table, then each case."""
+    names = [name for name, _ in SCAN_COLOURS]
+    confusion = {want: {got: 0 for got in names} for want in names}
+    exact = wrong = noFace = right = total = 0
+    lines = []
+    for case, read in results:
+        if read is None:
+            noFace += 1
+            got = "no face found"
+            nRight = 0
+        else:
+            nRight = sum(w == g for w, g in zip(case.stickers, read))
+            right += nRight
+            total += 9
+            for w, g in zip(case.stickers, read):
+                confusion[w][g] += 1
+            if read == case.stickers:
+                exact += 1
+                got = ""
+            else:
+                wrong += 1
+                got = ", ".join(f"{w}->{g}" for w, g in zip(case.stickers, read) if w != g)
+        verdict = "PASS" if read == case.stickers else ("FAIL (known)" if case.knownIssue else "FAIL")
+        lines.append(f"{case.name:14} {verdict:13} {nRight}/9  {got}")
+        if case.knownIssue and read != case.stickers:
+            lines.append(f"{'':29}known: {case.knownIssue}")
+
+    n = len(results)
+    out = [
+        f"{n} cases",
+        f"  exact match        {exact:3}  ({exact / n:.0%})",
+        f"  wrong reading      {wrong:3}  ({wrong / n:.0%})  <- a face came back with wrong colours",
+        f"  no face found      {noFace:3}  ({noFace / n:.0%})",
+        f"sticker accuracy     {right}/{total} ({right / max(total, 1):.1%}) over faces that were found",
+        "",
+        "confusion: rows are the real colour, columns what it was read as (found faces only)",
+        f"{'':9}" + "".join(f"{g[:6]:>8}" for g in names),
+    ]
+    for w in names:
+        out.append(f"{w:9}" + "".join(f"{confusion[w][g] or '.':>8}" for g in names))
+    out += ["", "per case"] + lines
+    return "\n".join(out) + "\n"
+
+
 def contactSheet(results: list[tuple[Case, np.ndarray, list[str] | None]]) -> np.ndarray:
     """Tiles every case with its name, what readFace read, and whether that was right."""
     tileW, tileH, cols = 320, 280, 4
@@ -196,17 +309,41 @@ def contactSheet(results: list[tuple[Case, np.ndarray, list[str] | None]]) -> np
 if __name__ == "__main__":
     from rubiks_cube.scanner_utils import readFace
 
-    outDir = sys.argv[1] if len(sys.argv) > 1 else os.path.join(os.path.dirname(__file__), "scanner_images")
-    os.makedirs(outDir, exist_ok=True)
+    args = [a for a in sys.argv[1:] if a != "--standard"]
+    standard = "--standard" in sys.argv[1:]
+    defaultDir = DEFAULT_DIR + "_standard" if standard else DEFAULT_DIR
+    outDir = args[0] if args else defaultDir
+    cases = CASES
+    if standard:
+        # only cases drawn in the default palette switch, otherCamera keeps its own
+        cases = [
+            replace(c, knownIssue="", palette=STANDARD_RGB if c.palette is STICKER_RGB else c.palette) for c in CASES
+        ]
+    dirs = {True: os.path.join(outDir, "passed"), False: os.path.join(outDir, "failed")}
+    for d in dirs.values():
+        os.makedirs(d, exist_ok=True)
+    # a case can change folder between runs, so clear what earlier runs wrote (including the old flat
+    # layout, where the case images sat at the top level)
+    for case in cases:
+        for d in (outDir, *dirs.values()):
+            for suffix in ("", "_detected"):
+                path = os.path.join(d, f"{case.name}{suffix}.png")
+                if os.path.exists(path):
+                    os.remove(path)
+
     results = []
-    for case in CASES:
+    for case in cases:
         frame = render(case)
         cv2.setRNGSeed(0)
         output = frame.copy()
         read = readFace(frame, SCAN_COLOURS, output)
-        cv2.imwrite(os.path.join(outDir, f"{case.name}.png"), frame)
-        cv2.imwrite(os.path.join(outDir, f"{case.name}_detected.png"), output)
+        drawReading(output, case, read)
+        caseDir = dirs[read == case.stickers]
+        cv2.imwrite(os.path.join(caseDir, f"{case.name}.png"), frame)
+        cv2.imwrite(os.path.join(caseDir, f"{case.name}_detected.png"), output)
         results.append((case, frame, read))
         print(f"{case.name:15} {'PASS' if read == case.stickers else 'FAIL'}  {case.description}")
     cv2.imwrite(os.path.join(outDir, "contact_sheet.png"), contactSheet(results))
+    with open(os.path.join(outDir, "summary.txt"), "w", encoding="utf-8") as handle:
+        handle.write(summaryText([(case, read) for case, _, read in results]))
     print(f"wrote {outDir}")
