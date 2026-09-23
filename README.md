@@ -60,13 +60,80 @@ Below is an image showing what the main UI window looks like:
 <img width="600" height="400" alt="image" src="https://github.com/user-attachments/assets/a30d6f0b-7677-43f9-a598-bee95ec1171f" />
 
 
+## Stats
+
+| | |
+|---|---|
+| **Average solve** | **~7.8 us** |
+| **Average solution** | **56.0 moves** (54.9 after `optimiseMoves`) |
+| Longest solution seen | 70 moves |
+| Throughput | ~128,000 cubes/second on one core |
+
+Numbers from 3000 random scrambles on an idle machine. Scrambling is the slow part now:
+`randomise()` does 50 separate face turns and comes out at roughly 5x the cost of a solve.
+
+Each stage is one table lookup. The state gets encoded to an integer (the last layer skips even
+that and keys straight off its 20 stickers), and the table hands back that stage's whole solution
+as a single 54-square permutation plus the move labels. Nothing is searched at solve time.
+
+### Solution length
+
+| Stage | Mean moves | Worst case |
+|---|---|---|
+| Cross | 6.6 | 9 |
+| F2L corners | 12.6 | 17 |
+| F2L middles | 17.1 | 24 |
+| Last layer | 19.7 | 29 |
+| **Total** | **56.0** | **70** |
+| After `optimiseMoves` | 54.9 | 68 |
+
+It's a beginner method, so 56 moves is a long way off God's number of 20. Each stage is optimal for
+the moves that stage is allowed to use, which isn't the same thing. The macros are enumerated
+rather than written out by hand (see `macro_enumeration.py`), and that alone saved about 20 moves a
+solve.
+
+### Where the time goes
+
+| Stage | Share of a solve |
+|---|---|
+| Cross | ~32% |
+| F2L corners | ~30% |
+| F2L middles | ~26% |
+| Last layer | ~13% |
+
+Don't read too much into the absolute times. The same code measured 7.9 us on an idle machine and
+25 us with a browser open, so run it yourself rather than trusting the table above. The per-stage
+numbers come from a second pass that calls the four stage methods one at a time, which costs more
+than `solve()` does, so they won't add up to the total. They're only really useful against each
+other.
+
+### Tables
+
+| Stage | States with a stored solution |
+|---|---|
+| Cross | 190,079 |
+| F2L corners | 136,079 |
+| F2L middles | 26,879 |
+| Last layer | 62,207 |
+| **Total** | **415,244** |
+
+29.4 MB on disk, 26.8 MB of that being the path tables the solver actually reads. They take ~1.4 s
+to load and sit at about 365 MB once they're up. That's the trade being made: a lot of memory so
+there's no search at solve time.
+
 ## Run tests / CI benchmark
-Run the CI benchmark script (solves 1000 cubes and records solve information):
+Run the CI benchmark script (solves 3000 cubes and records solve information):
 ```bash
 python tests/ci_test.py
 ```
 
-> **Note** - The time for an average solve should be ~0.01 seconds
+For a breakdown of where the time goes, with per-function call counts and internal time, use the
+profiling harness:
+```bash
+python profile_solve.py --solves 3000
+```
+
+> **Note** - the average solve time it reports should be single-digit microseconds. See [Stats](#stats).
 
 
 To run the unit tests:
