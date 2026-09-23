@@ -1,6 +1,7 @@
 import logging
 import tkinter as tk
 
+import numpy as np
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 
 from .colour_calibration import CubeCalibrator
@@ -15,22 +16,22 @@ class GUI:
         """Initialises the GUI with a Cube object."""
         logging.info("Initialising GUI")
         self.cube = cube
-        self.canvas = None
-        self.scanner = None
+        self.canvas: FigureCanvasTkAgg | None = None
+        self.scanner: CubeScanner | None = None
         self.tk = tk.Tk()
         self.tk.title("Rubik's Cube")
         self.tk.protocol("WM_DELETE_WINDOW", self.onClose)
         self.w, self.h = self.tk.winfo_screenwidth(), self.tk.winfo_screenheight()
         self.tk.geometry(f"{self.w}x{self.h}")
         self.mainloopStarted = False
-        self.calibratedColours = None
+        self.calibratedColours: dict[str, np.ndarray] | None = None
         self.showAnimations = True
         self.plotter = CubePlotter()
         self.ani = None
 
     def onClose(self) -> None:
         """Called when the main window is closed: stop scanner, release camera and exit."""
-        if getattr(self, "scanner", None):
+        if self.scanner is not None:
             self.scanner.stop()
 
         self.tk.quit()
@@ -46,7 +47,8 @@ class GUI:
         logging.info(f"Plotting list: {plottingList}")
 
         self.plotter.plotRubiks3D(plottingList)
-        self.canvas.draw()
+        if self.canvas is not None:
+            self.canvas.draw()
 
     def solveCube(self) -> None:
         """Solves the cube, and creates a TopLevel window with the moves to solve the cube."""
@@ -169,21 +171,22 @@ class GUI:
         self.video_label = tk.Label(self.tk)
         self.video_label.pack(fill=tk.BOTH, expand=True, padx=10, pady=10)
 
-        self.scanner = CubeScanner(self.video_label, self.calibratedColours)
+        scanner = CubeScanner(self.video_label, self.calibratedColours)
+        self.scanner = scanner
         btn_row = tk.Frame(self.tk)
         btn_row.pack(side=tk.BOTTOM, pady=10)
 
         def cancel_scan():
             logging.info("Cancelling cube scan")
-            self.scanner.stop()
+            scanner.stop()
             self.plotter = CubePlotter()
             self.createTkWindow()
 
         def end_scan():
             logging.info("Ending cube scan")
-            self.scanner.stop()
+            scanner.stop()
             self.plotter = CubePlotter()
-            self.cube.initialiseFaces(self.scanner.getCubeString())
+            self.cube.initialiseFaces(scanner.getCubeString())
             self.createTkWindow()
 
         cancel_btn = tk.Button(btn_row, text="Cancel", font=("Arial", 20), bg="lightcoral", command=cancel_scan)
@@ -241,7 +244,8 @@ class GUI:
             self.ani = self.plotter.animateMove(
                 self.cube.getMoveRelative(move), canvas=self.canvas, cubeString="".join(self.cube.getPlottingList())
             )
-            self.canvas.draw()
+            if self.canvas is not None:
+                self.canvas.draw()
         else:
             self.plot3D()
 

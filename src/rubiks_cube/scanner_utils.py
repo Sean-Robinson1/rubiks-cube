@@ -39,12 +39,12 @@ def getClosestColourName(colour: tuple[float, float, float], colours: list[tuple
     return closestColour[0]
 
 
-def displayFace(image: np.ndarray, colourList: list[list]) -> np.ndarray:
+def displayFace(image: np.ndarray, colourList: list[str]) -> np.ndarray:
     """Displays a map of all the faces of the cube which have been detected.
 
     Args:
         image (np.ndarray): The image to draw the face on.
-        colourList (list[list]): A list of lists containing the colours of each face of the cube.
+        colourList (list[str]): The colour names of the face's nine squares.
 
     Returns:
         np.ndarray: The image with the face drawn on it.
@@ -87,7 +87,8 @@ def getDominantColours(image: np.ndarray, numClusters: int = 2) -> list[tuple]:
     criteria = (cv2.TERM_CRITERIA_EPS + cv2.TERM_CRITERIA_MAX_ITER, 10, 1.0)
 
     flags = cv2.KMEANS_RANDOM_CENTERS
-    _, _, centers = cv2.kmeans(data, numClusters, None, criteria, 10, flags)
+    # the stubs want a labels array but None is what opencv expects here
+    _, _, centers = cv2.kmeans(data, numClusters, None, criteria, 10, flags)  # type: ignore
 
     dominantColours = [(c[2], c[1], c[0]) for c in centers]
 
@@ -96,14 +97,14 @@ def getDominantColours(image: np.ndarray, numClusters: int = 2) -> list[tuple]:
     return dominantColours
 
 
-def extractColours(image: np.ndarray, faceColours: list[tuple[str, np.ndarray]]) -> list[list]:
+def extractColours(image: np.ndarray, faceColours: list[tuple[str, np.ndarray]]) -> list[str]:
     """Extracts the colours of each cell in the Rubik's Cube face.
 
     Args:
         image (np.ndarray): The image of the Rubik's Cube face.
 
     Returns:
-        list[list]: A list of lists containing the colours of each face of the cube.
+        list[str]: The colour name of each of the nine cells.
     """
     cells = []
 
@@ -131,12 +132,12 @@ def extractColours(image: np.ndarray, faceColours: list[tuple[str, np.ndarray]])
     return colours
 
 
-def filterContours(contours: list[np.ndarray], thresholdDistance: int) -> list[np.ndarray]:
+def filterContours(contours: list[np.ndarray], thresholdDistance: float) -> list[np.ndarray]:
     """Filters the detected contours to ensure they likely represent cube faces.
 
     Args:
         contours (list[np.ndarray]): The list of detected contours.
-        thresholdDistance (int): The maximum distance from the average center to consider a contour valid.
+        thresholdDistance (float): The maximum distance from the average center to consider a contour valid.
 
     Returns:
         list[np.ndarray]: The filtered list of contours.

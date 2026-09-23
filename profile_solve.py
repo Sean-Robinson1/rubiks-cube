@@ -132,7 +132,8 @@ def profileSummary(cube: Cube, scrambles: list, includeScramble: bool, sortKey: 
     profiler.disable()
 
     stats = pstats.Stats(profiler)
-    entries = stats.stats  # {func: (primitive_calls, total_calls, tottime, cumtime, callers)}
+    # {func: (primitive_calls, total_calls, tottime, cumtime, callers)}, not in the stubs
+    entries = stats.stats  # pyright: ignore[reportAttributeAccessIssue]
     totalTottime = sum(v[2] for v in entries.values()) or 1.0
     totalCalls = sum(v[1] for v in entries.values())
     solves = len(scrambles)

@@ -16,6 +16,9 @@ dependencies = [
   "matplotlib>=3.7"
 ]
 
+[project.optional-dependencies]
+dev = ["pytest", "pre-commit", "pyright==1.1.414"]
+
 [project.scripts]
 rubiks-cube = "rubiks_cube.main:main"
 
@@ -25,3 +28,7 @@ include = ["rubiks_cube*"]
 
 [tool.setuptools.package-data]
 rubiks_cube = ["data/*.bin"]
+
+[tool.pyright]
+pythonVersion = "3.10"
+include = ["src", "tests", "profile_solve.py"]

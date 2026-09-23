@@ -11,7 +11,6 @@ from .plotter_utils import getDistance, rotatePlanes
 class CubePlotter:
     def __init__(self):
         self.planes = []
-        self.fig, self.ax = None, None
         self.createFig()
 
     def createFig(self):
@@ -23,7 +22,15 @@ class CubePlotter:
         self.fig, self.ax = plt.subplots(subplot_kw={"projection": "3d"})
 
     def makePlane(
-        self, xmin: float, xmax: float, ymin: float, ymax: float, zmin: float, zmax: float, colour: str, colourName: str
+        self,
+        xmin: float,
+        xmax: float,
+        ymin: float,
+        ymax: float,
+        zmin: float,
+        zmax: float,
+        colour: str | np.ndarray,
+        colourName: str,
     ) -> dict:
         """Create a plane dict given its bounding box.
 
@@ -34,7 +41,7 @@ class CubePlotter:
             ymax (float): Maximum y-coordinate.
             zmin (float): Minimum z-coordinate.
             zmax (float): Maximum z-coordinate.
-            colour (str): Colour of the plane.
+            colour (str | np.ndarray): Colour of the plane.
 
         Returns:
             dict: A dictionary representing the plane with keys "center", "corners", and "colour".
@@ -51,11 +58,11 @@ class CubePlotter:
 
         return {"center": center, "corners": corners, "colour": colour, "colourName": colourName}
 
-    def plotRubiks3D(self, colours: list[list[str]]) -> None:
+    def plotRubiks3D(self, colours: list[str] | list[np.ndarray]) -> None:
         """Create plane data for a Rubik's Cube and plot them.
 
         Args:
-            colours (list[list[str]]): A flat list (length 54) of colours.
+            colours (list[str] | list[np.ndarray]): A flat list (length 54) of colours.
 
         Returns:
             tuple[plt.Figure, Axes3D, list[dict]]: The figure, axis, and list of plane dicts.
@@ -151,7 +158,7 @@ class CubePlotter:
         faceCenter = FACE_CENTER_POSITIONS[move]
         rotatePlanes(self.planes, indices, axis, direction * angle, faceCenter)
 
-    def updatePlot(self, planes: list[dict] = None, canvas: FigureCanvasTkAgg = None):
+    def updatePlot(self, planes: list[dict] | None = None, canvas: FigureCanvasTkAgg | None = None):
         """Update the 3D plot with the current plane data.
 
         Args:
@@ -177,7 +184,12 @@ class CubePlotter:
             canvas.draw()
 
     def animateMove(
-        self, move: str, steps: int = 15, canvas: FigureCanvasTkAgg = None, interval: int = 1, cubeString: str = None
+        self,
+        move: str,
+        steps: int = 15,
+        canvas: FigureCanvasTkAgg | None = None,
+        interval: int = 1,
+        cubeString: str | None = None,
     ) -> FuncAnimation:
         """Animate a move on the cube plotter.
 
@@ -215,9 +227,10 @@ class CubePlotter:
         totalAngle = direction * np.pi / 2
         angleStep = totalAngle / steps
 
-        def update(frame):
+        def update(frame) -> list:
             rotatePlanes(self.planes, indices, axis, angleStep, faceCenter)
             self.updatePlot(canvas=canvas)
+            return []  # not blitting, so no artists to hand back
 
         ani = FuncAnimation(self.fig, update, frames=steps - 1, interval=interval, repeat=False)
         return ani

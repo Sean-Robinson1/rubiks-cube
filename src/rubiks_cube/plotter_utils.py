@@ -17,20 +17,20 @@ def getDistance(a: np.ndarray, b: np.ndarray) -> float:
     return np.sqrt(np.sum((a - b) ** 2))
 
 
-def rotationMatrix(axis: np.ndarray, theta: float) -> np.ndarray:
+def rotationMatrix(axis: np.ndarray | list[int], theta: float) -> np.ndarray:
     """Return the rotation matrix associated with rotation about the given axis by theta radians.
 
     Args:
-        axis (np.ndarray): The axis to rotate about.
+        axis (np.ndarray | list[int]): The axis to rotate about.
         theta (float): The angle to rotate by, in radians.
 
     Returns:
         np.ndarray: The rotation matrix.
     """
-    axis = np.asarray(axis, dtype=float)
-    axis = axis / np.linalg.norm(axis)
+    unitAxis = np.asarray(axis, dtype=float)
+    unitAxis = unitAxis / np.linalg.norm(unitAxis)
     a = np.cos(theta / 2.0)
-    b, c, d = -axis * np.sin(theta / 2.0)
+    b, c, d = -unitAxis * np.sin(theta / 2.0)
     return np.array(
         [
             [a * a + b * b - c * c - d * d, 2 * (b * c - a * d), 2 * (b * d + a * c)],
@@ -40,13 +40,15 @@ def rotationMatrix(axis: np.ndarray, theta: float) -> np.ndarray:
     )
 
 
-def rotatePlanes(planes: list[dict], indices: list[int], axis: np.ndarray, angle: float, center: np.ndarray) -> None:
+def rotatePlanes(
+    planes: list[dict], indices: list[int], axis: np.ndarray | list[int], angle: float, center: np.ndarray
+) -> None:
     """Rotate the specified planes around a given axis by a certain angle.
 
     Args:
         planes (list[dict]): List of plane dicts to rotate.
         indices (list[int]): Indices of planes to rotate.
-        axis (np.ndarray): Axis to rotate around.
+        axis (np.ndarray | list[int]): Axis to rotate around.
         angle (float): Angle to rotate by, in radians.
         center (np.ndarray): Center point to rotate around.
     """

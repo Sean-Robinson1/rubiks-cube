@@ -72,7 +72,7 @@ def _halfSequences(maxLength: int) -> list:
     Returns:
         list: The (permutation, moves) pair for each sequence, including the empty one.
     """
-    sequences = [(_IDENTITY, ())]
+    sequences: list[tuple[tuple[int, ...], tuple[str, ...]]] = [(_IDENTITY, ())]
     frontier = [(_IDENTITY, ())]
     for _ in range(maxLength):
         nextFrontier = []
@@ -87,7 +87,7 @@ def _halfSequences(maxLength: int) -> list:
     return sequences
 
 
-def enumerateMacros(preserved, tracked, halfDepth: int = 4, maxLength: int = None) -> list:
+def enumerateMacros(preserved, tracked, halfDepth: int = 4, maxLength: int | None = None) -> list:
     """Finds the shortest preservation-respecting macro for each distinct effect on a stage.
 
     Args:

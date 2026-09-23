@@ -100,7 +100,7 @@ for _slot in range(len(CORNERS)):
         for _w in range(3):  # which of the three stickers is white (the orientation)
             _others = [i for i in range(3) if i != _w]
             for _c1, _c2 in ((_a, _b), (_b, _a)):
-                _key = [None, None, None]
+                _key: list[str | None] = [None, None, None]
                 _key[_w] = "W"
                 _key[_others[0]] = _c1
                 _key[_others[1]] = _c2

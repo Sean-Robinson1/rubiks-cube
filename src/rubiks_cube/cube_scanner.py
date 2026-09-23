@@ -1,5 +1,5 @@
 import logging
-from tkinter import *
+from tkinter import Label
 
 import cv2
 import numpy as np
@@ -10,7 +10,7 @@ from .scanner_utils import displayFace, extractColours, filterContours
 
 
 class CubeScanner:
-    def __init__(self, videoLabel: Label, calibratedColours: dict[str, np.ndarray] = None) -> None:
+    def __init__(self, videoLabel: Label, calibratedColours: dict[str, np.ndarray] | None = None) -> None:
         """Initialises the CubeScanner with a video label and optional calibrated colours.
 
         Args:
@@ -164,11 +164,11 @@ class CubeScanner:
         if hasattr(self, "vid") and self.vid.isOpened():
             self.vid.release()
 
-    def getCubeString(self) -> str:
+    def getCubeString(self) -> str | None:
         """Returns the cube string representation of the scanned cube.
 
         Returns:
-            str: The cube string representation, or an empty string if not all faces are scanned.
+            str | None: The cube string representation, or None if not all faces are scanned.
         """
         cubeString = ""
         for face in ["White", "Green", "Red", "Blue", "Orange", "Yellow"]:

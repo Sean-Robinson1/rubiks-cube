@@ -72,12 +72,12 @@ class CubeCalibrator:
                 cells.append(img[startY:endY, startX:endX])
         return cells
 
-    def displayColours(self, frame: np.ndarray, colours: dict[str, tuple[np.ndarray, int]]) -> np.ndarray:
+    def displayColours(self, frame: np.ndarray, colours: dict[str, list]) -> np.ndarray:
         """Display the current averaged colours on the frame.
 
         Args:
             frame (np.ndarray): The frame to draw on.
-            colours (dict[str, tuple[np.ndarray, int]]): The current averaged colours and their counts.
+            colours (dict[str, list]): The current averaged colours and their counts.
 
         Returns:
             np.ndarray: The frame with the colours drawn on it.
