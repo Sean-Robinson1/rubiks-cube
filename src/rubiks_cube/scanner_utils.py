@@ -1,9 +1,10 @@
 import logging
+from collections.abc import Sequence
 
 import cv2
 import numpy as np
 
-from .constants import FACE_TO_POSITION, USUAL_COLOUR_VALUES
+from .constants import FACE_TO_POSITION, SOLVED_MASK, USUAL_COLOUR_VALUES
 
 
 def distance(r, g, b, r2, g2, b2) -> float:
@@ -118,27 +119,6 @@ def extractCells(img: np.ndarray) -> list[np.ndarray]:
     return cells
 
 
-def extractColours(image: np.ndarray, faceColours: list[tuple[str, np.ndarray]]) -> list[str]:
-    """Extracts the colours of each cell in the Rubik's Cube face.
-
-    Args:
-        image (np.ndarray): The image of the Rubik's Cube face.
-
-    Returns:
-        list[str]: The colour name of each of the nine cells.
-    """
-    cells = extractCells(image)
-
-    counter = 0
-    colours = []
-    for cell in cells:
-        counter += 1
-        dominantColourName = getClosestColourName(stickerColour(cell), faceColours)
-
-        colours.append(dominantColourName)
-    return colours
-
-
 def filterContours(contours: list[np.ndarray], thresholdDistance: float) -> list[np.ndarray]:
     """Filters the detected contours to ensure they likely represent cube faces.
 
@@ -176,7 +156,7 @@ def bgr2rgb(col: np.ndarray) -> np.ndarray:
 
 
 def readFace(frame: np.ndarray, faceColours: list, output: np.ndarray | None = None) -> list[str] | None:
-    """Looks for a cube face in a camera frame and reads its nine colours.
+    """Looks for a cube face in a camera frame and names its nine colours against fixed references.
 
     Args:
         frame (np.ndarray): The BGR camera frame.
@@ -185,6 +165,24 @@ def readFace(frame: np.ndarray, faceColours: list, output: np.ndarray | None = N
 
     Returns:
         list[str] | None: The colour name of each of the nine stickers, or None if no face was found.
+    """
+    measured = readFaceColours(frame, output)
+    if measured is None:
+        return None
+    colours = [getClosestColourName(colour, faceColours) for colour in measured]
+    logging.info(f"Detected colours: {colours}")
+    return colours
+
+
+def readFaceColours(frame: np.ndarray, output: np.ndarray | None = None) -> list[tuple[float, float, float]] | None:
+    """Looks for a cube face in a camera frame and measures its nine sticker colours, without naming them.
+
+    Args:
+        frame (np.ndarray): The BGR camera frame.
+        output (np.ndarray, optional): If given, the found stickers and face are drawn onto it.
+
+    Returns:
+        list[tuple[float, float, float]] | None: Each sticker's RGB colour, or None if no face was found.
     """
     # manipulating image to scan contours
     grayed = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
@@ -242,9 +240,48 @@ def readFace(frame: np.ndarray, faceColours: list, output: np.ndarray | None = N
                         cv2.rectangle(output, (minX, minY), (maxX, maxY), (0, 0, 255), 3)
 
                     cropped = frame[minY:maxY, minX:maxX]
-                    colours = extractColours(cropped, faceColours)
-
-                    logging.info(f"Detected colours: {colours}")
-
-                    return colours
+                    return [stickerColour(cell) for cell in extractCells(cropped)]
     return None
+
+
+def assignColours(stickers: Sequence[Sequence[float]]) -> str:
+    """Names all 54 stickers at once against the cube's own centres, nine to each colour.
+
+    The centres are seen under the same light as everything else, so they make better references than
+    fixed values. A glared centre spoils its colour though, so that has to be caught when scanning.
+
+    Args:
+        stickers (Sequence[Sequence[float]]): Every sticker's measured RGB colour, in Cube.state
+            order, so each face's centre is the colour that face is in the solved cube.
+
+    Returns:
+        str: The cube state.
+    """
+    # distances in LAB, where they match how different colours look far better than in RGB
+    lab = cv2.cvtColor(np.array(stickers, dtype=np.float32).reshape(1, -1, 3) / 255, cv2.COLOR_RGB2LAB)[0]
+    centres = [face * 9 + 4 for face in range(6)]
+    others = [i for i in range(54) if i not in centres]
+    names = [SOLVED_MASK[i] for i in centres]
+    distances = np.linalg.norm(lab[:, None, :] - lab[centres][None, :, :], axis=2)
+
+    # closest pairs first, until each colour has its nine
+    state = [SOLVED_MASK[i] if i in centres else "" for i in range(54)]
+    room = [8] * 6
+    for i, colour in sorted(((i, c) for i in others for c in range(6)), key=lambda p: distances[p]):
+        if not state[i] and room[colour]:
+            state[i] = names[colour]
+            room[colour] -= 1
+
+    # greedy can push a displaced sticker down a chain (white to orange to yellow), so swap any two
+    # while it lowers the total. on the synthetic cubes this matched scipy's exact assignment
+    index = {name: colour for colour, name in enumerate(names)}
+    improved = True
+    while improved:
+        improved = False
+        for a in others:
+            for b in others:
+                ca, cb = index[state[a]], index[state[b]]
+                if ca != cb and distances[a, cb] + distances[b, ca] < distances[a, ca] + distances[b, cb] - 1e-9:
+                    state[a], state[b] = state[b], state[a]
+                    improved = True
+    return "".join(state)

@@ -69,6 +69,7 @@ class Case:
     brightness: float = 1.0
     tint: tuple[float, float, float] = (1.0, 1.0, 1.0)  # per channel RGB gain, a colour cast
     glare: float = 0.0  # peak brightness added by a specular spot, 0-255
+    glareAt: tuple[float, float] = (-0.15, -0.2)  # spot position from the face centre, in face widths
     noise: float = 0.0  # gaussian sensor noise sigma
     blur: int = 0  # gaussian blur kernel, odd, 0 for none
     clutter: bool = False  # busy coloured background
@@ -178,7 +179,7 @@ def render(case: Case, seed: int = 0) -> np.ndarray:
     img *= case.brightness * np.array(case.tint[::-1], dtype=np.float32)
     if case.glare:
         ys, xs = np.mgrid[0:FRAME_H, 0:FRAME_W]
-        gx, gy = case.centre[0] - size * 0.15, case.centre[1] - size * 0.2
+        gx, gy = case.centre[0] + size * case.glareAt[0], case.centre[1] + size * case.glareAt[1]
         spot = np.exp(-(((xs - gx) ** 2) / (2 * (size * 0.18) ** 2) + ((ys - gy) ** 2) / (2 * (size * 0.1) ** 2)))
         img += (case.glare * spot)[:, :, None]
     if case.noise:
@@ -187,6 +188,29 @@ def render(case: Case, seed: int = 0) -> np.ndarray:
     if case.blur:
         img = cv2.GaussianBlur(img, (case.blur, case.blur), 0)
     return img
+
+
+LETTER_NAMES = {name[0]: name for name in STICKER_RGB}
+
+
+def renderCube(state: str, case: Case, faceBrightness: list[float] | None = None) -> list[np.ndarray]:
+    """One frame per face of a whole cube, in Cube.state face order, each shot under the case's conditions.
+
+    Args:
+        state (str): The cube state to draw.
+        case (Case): The conditions. Its stickers are ignored.
+        faceBrightness (list[float], optional): A brightness per face on top of the case's, for a camera
+            whose exposure changes as the cube is turned.
+
+    Returns:
+        list[np.ndarray]: The six BGR frames.
+    """
+    frames = []
+    for face in range(6):
+        stickers = [LETTER_NAMES[c] for c in state[face * 9 : (face + 1) * 9]]
+        brightness = case.brightness * (faceBrightness[face] if faceBrightness else 1.0)
+        frames.append(render(replace(case, stickers=stickers, brightness=brightness)))
+    return frames
 
 
 def drawReading(output: np.ndarray, case: Case, read: list[str] | None) -> None:
