@@ -5,7 +5,7 @@ import numpy as np
 from PIL import Image, ImageTk
 
 from .constants import FACE_KEYS
-from .scanner_utils import bgr2rgb, getDominantColours
+from .scanner_utils import bgr2rgb, extractCells, getDominantColours
 
 
 class CubeCalibrator:
@@ -49,28 +49,6 @@ class CubeCalibrator:
         key = getattr(event, "char", "").lower()
         if key in FACE_KEYS:
             self.currentFace = FACE_KEYS[key]
-
-    def extractCells(self, img: np.ndarray) -> list[np.ndarray]:
-        """Extract the 9 cells from the given image of a cube face.
-
-        Args:
-            img (np.ndarray): The image of the cube face.
-
-        Returns:
-            list[np.ndarray]: A list of 9 images, each corresponding to a cell.
-        """
-        h, w = img.shape[:2]
-        xInc = w // 3
-        yInc = h // 3
-        cells = []
-        for y in range(3):
-            for x in range(3):
-                startX = int(round((x + 0.2) * xInc))
-                startY = int(round((y + 0.2) * yInc))
-                endX = int(round((x + 0.8) * xInc))
-                endY = int(round((y + 0.8) * yInc))
-                cells.append(img[startY:endY, startX:endX])
-        return cells
 
     def displayColours(self, frame: np.ndarray, colours: dict[str, list]) -> np.ndarray:
         """Display the current averaged colours on the frame.
@@ -139,7 +117,7 @@ class CubeCalibrator:
 
         cv2.rectangle(frame, (minx, miny), (maxx, maxy), (0, 255, 0), 2)
 
-        cells = self.extractCells(cropped)
+        cells = extractCells(cropped)
         dominantColours = []
         for cell in cells:
             dom = getDominantColours(cell, 1)[0]

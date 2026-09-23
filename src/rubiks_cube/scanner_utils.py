@@ -97,6 +97,29 @@ def getDominantColours(image: np.ndarray, numClusters: int = 2) -> list[tuple]:
     return dominantColours
 
 
+def extractCells(img: np.ndarray) -> list[np.ndarray]:
+    """Extract the 9 cells from the given image of a cube face.
+
+    Args:
+        img (np.ndarray): The image of the cube face.
+
+    Returns:
+        list[np.ndarray]: A list of 9 images, each corresponding to a cell.
+    """
+    h, w = img.shape[:2]
+    xInc = w // 3
+    yInc = h // 3
+    cells = []
+    for y in range(3):
+        for x in range(3):
+            startX = int(round((x + 0.2) * xInc))
+            startY = int(round((y + 0.2) * yInc))
+            endX = int(round((x + 0.8) * xInc))
+            endY = int(round((y + 0.8) * yInc))
+            cells.append(img[startY:endY, startX:endX])
+    return cells
+
+
 def extractColours(image: np.ndarray, faceColours: list[tuple[str, np.ndarray]]) -> list[str]:
     """Extracts the colours of each cell in the Rubik's Cube face.
 
@@ -106,20 +129,7 @@ def extractColours(image: np.ndarray, faceColours: list[tuple[str, np.ndarray]])
     Returns:
         list[str]: The colour name of each of the nine cells.
     """
-    cells = []
-
-    w, h = image.shape[:2]
-    xInc = w // 3
-    yInc = h // 3
-    for y in range(3):
-        for x in range(3):
-            startX = int(round((x + 0.2) * xInc, 0))
-            startY = int(round((y + 0.2) * yInc, 0))
-
-            endX = int(round((x + 0.8) * xInc, 0))
-            endY = int(round((y + 0.8) * yInc, 0))
-
-            cells.append(image[startY:endY, startX:endX])
+    cells = extractCells(image)
 
     counter = 0
     colours = []
