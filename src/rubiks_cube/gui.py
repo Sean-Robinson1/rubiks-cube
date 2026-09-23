@@ -1,5 +1,6 @@
 import logging
 import tkinter as tk
+from tkinter import messagebox
 
 import numpy as np
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
@@ -8,6 +9,7 @@ from .colour_calibration import CubeCalibrator
 from .cube import Cube
 from .cube_plotter import CubePlotter
 from .cube_scanner import CubeScanner
+from .cube_validation import validateCube
 from .plotter_utils import getRelativeFaces
 
 
@@ -53,6 +55,13 @@ class GUI:
     def solveCube(self) -> None:
         """Solves the cube, and creates a TopLevel window with the moves to solve the cube."""
         logging.info("Solving cube")
+
+        # an impossible cube (a misscan) would otherwise come back as a solution of no moves
+        problems = validateCube(self.cube.state)
+        if problems:
+            logging.warning(f"Not solving, cube is invalid: {problems}")
+            messagebox.showerror("Can't solve this cube", "\n".join(problems), parent=self.tk)
+            return
 
         self.cube.solve()
         moves = " ".join(self.cube.optimisedMoves)
