@@ -69,32 +69,30 @@ def displayFace(image: np.ndarray, colourList: list[str]) -> np.ndarray:
     return image
 
 
-def getDominantColours(image: np.ndarray, numClusters: int = 2) -> list[tuple]:
-    """
-    Finds the dominant colours in an image
+def stickerColour(image: np.ndarray) -> tuple[float, float, float]:
+    """The colour of one sticker cell, robust to glare and to a sliver of border or shadow.
+
+    The pixels are split into a brighter and a darker group at the Otsu threshold and the median of the
+    bigger group is taken. Glare only adds light so it lands in the bright group, border and shadow in
+    the dark one. This replaced a 2-cluster kmeans that returned cluster 0 - the cluster order is
+    random, so about half the time it read the glare. A plain median is fine until glare covers a good
+    part of the cell (see the glare case in tests/scanner_images.py).
 
     Args:
-        image (np.ndarray): The image to find the dominant colours in.
-        numClusters (int, optional): The number of dominant colours to find. Defaults to 2.
+        image (np.ndarray): The BGR cell image.
 
     Returns:
-        list[tuple]: A list of the dominant colours in BGR format.
+        tuple[float, float, float]: The sticker colour, RGB.
     """
-
-    height, width, channels = image.shape
-    data = np.reshape(image, (height * width, channels)).astype(np.float32)
-
-    criteria = (cv2.TERM_CRITERIA_EPS + cv2.TERM_CRITERIA_MAX_ITER, 10, 1.0)
-
-    flags = cv2.KMEANS_RANDOM_CENTERS
-    # the stubs want a labels array but None is what opencv expects here
-    _, _, centers = cv2.kmeans(data, numClusters, None, criteria, 10, flags)  # type: ignore
-
-    dominantColours = [(c[2], c[1], c[0]) for c in centers]
-
-    logging.info(f"Found dominant colours: {dominantColours}")
-
-    return dominantColours
+    pixels = image.reshape(-1, 3)
+    grey = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY).reshape(-1)
+    threshold, _ = cv2.threshold(grey, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
+    bright = grey > threshold
+    group = pixels[bright] if bright.sum() * 2 > len(grey) else pixels[~bright]
+    if len(group) == 0:
+        group = pixels
+    b, g, r = np.median(group, axis=0)
+    return (float(r), float(g), float(b))
 
 
 def extractCells(img: np.ndarray) -> list[np.ndarray]:
@@ -135,8 +133,7 @@ def extractColours(image: np.ndarray, faceColours: list[tuple[str, np.ndarray]])
     colours = []
     for cell in cells:
         counter += 1
-        dominantColour = getDominantColours(cell)[0]
-        dominantColourName = getClosestColourName(dominantColour, faceColours)
+        dominantColourName = getClosestColourName(stickerColour(cell), faceColours)
 
         colours.append(dominantColourName)
     return colours

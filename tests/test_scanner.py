@@ -1,7 +1,6 @@
 import os
 import unittest
 
-import cv2
 from scanner_images import CASES, DEFAULT_DIR, render, summaryText
 
 from rubiks_cube.constants import SCAN_COLOURS
@@ -20,8 +19,6 @@ class TestReadFace(unittest.TestCase):
 
 def _makeTest(case):
     def test(self):
-        # kmeans starts from random centres, fix them so a reading can't change between runs
-        cv2.setRNGSeed(0)
         read = readFace(render(case), SCAN_COLOURS)
         _readings[case.name] = read
         self.assertEqual(read, case.stickers, case.description)

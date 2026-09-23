@@ -5,7 +5,7 @@ import numpy as np
 from PIL import Image, ImageTk
 
 from .constants import FACE_KEYS
-from .scanner_utils import bgr2rgb, extractCells, getDominantColours
+from .scanner_utils import bgr2rgb, extractCells, stickerColour
 
 
 class CubeCalibrator:
@@ -118,10 +118,8 @@ class CubeCalibrator:
         cv2.rectangle(frame, (minx, miny), (maxx, maxy), (0, 255, 0), 2)
 
         cells = extractCells(cropped)
-        dominantColours = []
-        for cell in cells:
-            dom = getDominantColours(cell, 1)[0]
-            dominantColours.append(dom)
+        # measured the same way the scanner measures a sticker, so the references match its readings
+        dominantColours = [stickerColour(cell) for cell in cells]
 
         if self.currentFace:
             for col in dominantColours:

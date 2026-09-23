@@ -88,19 +88,9 @@ CASES = [
         knownIssue="sticker area limits are absolute pixels (300-2000), a close face is over",
     ),
     Case("offCentre", "near the top left of the frame", centre=(160, 130)),
-    Case(
-        "tilt10",
-        "rotated 10 degrees",
-        rotation=10,
-        knownIssue="axis aligned face crop, and cells straddling two colours vary with the kmeans seed",
-    ),
+    Case("tilt10", "rotated 10 degrees", rotation=10),
     Case("tilt30", "rotated 30 degrees", rotation=30, knownIssue="face crop is an axis aligned box"),
-    Case(
-        "perspective",
-        "viewed from slightly below",
-        skew=0.15,
-        knownIssue="axis aligned face crop, and cells straddling two colours vary with the kmeans seed",
-    ),
+    Case("perspective", "viewed from slightly below", skew=0.15),
     Case("dim", "dark room", brightness=0.45, knownIssue="fixed RGB references, nothing normalises brightness"),
     Case(
         "bright", "overexposed", brightness=1.35, knownIssue="fixed RGB references, washed out yellow is nearer white"
@@ -111,12 +101,7 @@ CASES = [
         tint=(1.15, 1.0, 0.7),
         knownIssue="fixed RGB references, nothing corrects white balance",
     ),
-    Case(
-        "glare",
-        "specular highlight across the stickers",
-        glare=170,
-        knownIssue="getDominantColours takes kmeans cluster 0, not the biggest. passes with the biggest",
-    ),
+    Case("glare", "specular highlight across the stickers", glare=170),
     Case("noise", "grainy low light sensor", noise=14),
     Case("blur", "slightly out of focus", blur=7),
     Case("clutter", "busy coloured background", clutter=True),
@@ -334,7 +319,6 @@ if __name__ == "__main__":
     results = []
     for case in cases:
         frame = render(case)
-        cv2.setRNGSeed(0)
         output = frame.copy()
         read = readFace(frame, SCAN_COLOURS, output)
         drawReading(output, case, read)
