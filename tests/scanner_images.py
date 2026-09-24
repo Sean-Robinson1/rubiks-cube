@@ -124,6 +124,9 @@ CASES = [
 ]
 
 
+BY_NAME = {case.name: case for case in CASES}
+
+
 def renderFlatFace(case: Case) -> np.ndarray:
     """The face as a square BGR image, before any camera effects."""
     size = case.faceSize

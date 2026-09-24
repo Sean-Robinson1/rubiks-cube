@@ -5,6 +5,7 @@ import cv2
 import numpy as np
 
 from .constants import FACE_TO_POSITION, SOLVED_MASK, USUAL_COLOUR_VALUES
+from .cube_validation import CENTRES
 
 
 def distance(r, g, b, r2, g2, b2) -> float:
@@ -75,9 +76,7 @@ def stickerColour(image: np.ndarray) -> tuple[float, float, float]:
 
     The pixels are split into a brighter and a darker group at the Otsu threshold and the median of the
     bigger group is taken. Glare only adds light so it lands in the bright group, border and shadow in
-    the dark one. This replaced a 2-cluster kmeans that returned cluster 0 - the cluster order is
-    random, so about half the time it read the glare. A plain median is fine until glare covers a good
-    part of the cell (see the glare case in tests/scanner_images.py).
+    the dark one.
 
     Args:
         image (np.ndarray): The BGR cell image.
@@ -259,13 +258,12 @@ def assignColours(stickers: Sequence[Sequence[float]]) -> str:
     """
     # distances in LAB, where they match how different colours look far better than in RGB
     lab = cv2.cvtColor(np.array(stickers, dtype=np.float32).reshape(1, -1, 3) / 255, cv2.COLOR_RGB2LAB)[0]
-    centres = [face * 9 + 4 for face in range(6)]
-    others = [i for i in range(54) if i not in centres]
-    names = [SOLVED_MASK[i] for i in centres]
-    distances = np.linalg.norm(lab[:, None, :] - lab[centres][None, :, :], axis=2)
+    others = [i for i in range(54) if i not in CENTRES]
+    names = [SOLVED_MASK[i] for i in CENTRES]
+    distances = np.linalg.norm(lab[:, None, :] - lab[CENTRES][None, :, :], axis=2)
 
     # closest pairs first, until each colour has its nine
-    state = [SOLVED_MASK[i] if i in centres else "" for i in range(54)]
+    state = [SOLVED_MASK[i] if i in CENTRES else "" for i in range(54)]
     room = [8] * 6
     for i, colour in sorted(((i, c) for i in others for c in range(6)), key=lambda p: distances[p]):
         if not state[i] and room[colour]:

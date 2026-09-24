@@ -1,20 +1,17 @@
-import random
 import unittest
 from dataclasses import replace
 
-from scanner_images import CASES, STANDARD_RGB, STICKER_RGB, Case, renderCube
+from scanner_images import BY_NAME, STANDARD_RGB, STICKER_RGB, Case, renderCube
+from test_cube_validation import scrambled
 
 from rubiks_cube.constants import SOLVED_MASK
-from rubiks_cube.cube import Cube
 from rubiks_cube.cube_validation import validateCube
 from rubiks_cube.scanner_utils import assignColours, readFaceColours
-
-_byName = {c.name: c for c in CASES}
 
 # lighting and camera conditions for a whole cube. the detection failures (large, tilt30, stickerless)
 # are left out, they never get as far as colours
 CONDITIONS: dict[str, tuple[Case, list[float] | None]] = {
-    name: (_byName[name], None)
+    name: (BY_NAME[name], None)
     for name in [
         "baseline",
         "small",
@@ -31,8 +28,8 @@ CONDITIONS: dict[str, tuple[Case, list[float] | None]] = {
         "otherCamera",
     ]
 }
-CONDITIONS["exposureVaries"] = (_byName["baseline"], [0.7, 1.15, 0.85, 1.25, 0.75, 1.05])
-CONDITIONS["glareOnCentre"] = (replace(_byName["glare"], glareAt=(0.0, 0.0)), None)
+CONDITIONS["exposureVaries"] = (BY_NAME["baseline"], [0.7, 1.15, 0.85, 1.25, 0.75, 1.05])
+CONDITIONS["glareOnCentre"] = (replace(BY_NAME["glare"], glareAt=(0.0, 0.0)), None)
 
 # in the SCAN_COLOURS camera's palette glare turns orange into their yellow and yellow into white, so
 # the pixels can't tell them apart and the nine-of-each rule only sometimes recovers it. validateCube
@@ -45,17 +42,7 @@ KNOWN = {
 PALETTES = {"camera": STICKER_RGB, "standard": STANDARD_RGB}
 
 
-def _scrambles(n: int = 3) -> list[str]:
-    random.seed(0)
-    cube = Cube()
-    out = []
-    for _ in range(n):
-        cube.randomise()
-        out.append(cube.state)
-    return out
-
-
-SCRAMBLES = _scrambles()
+SCRAMBLES = [scrambled(seed) for seed in range(3)]
 _measured: dict[tuple[str, str, str], list[tuple[float, float, float]] | None] = {}
 
 

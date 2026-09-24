@@ -13,7 +13,7 @@ _readings = {}
 class TestReadFace(unittest.TestCase):
     # one test per case in scanner_images.CASES, added below. run `python tests/scanner_images.py` to
     # see the frames. cases with a knownIssue are expected failures, so fixing one shows up as an
-    # unexpected success - drop its knownIssue then
+    # unexpected success, so drop its knownIssue then
     pass
 
 
@@ -32,7 +32,7 @@ for _case in CASES:
 
 
 def tearDownModule():
-    # refresh scanner_images/summary.txt, but only after a full run - a `-k` subset would overwrite it
+    # refresh scanner_images/summary.txt, but only after a full run. a `-k` subset would overwrite it
     # with a partial one
     if len(_readings) != len(CASES):
         return
