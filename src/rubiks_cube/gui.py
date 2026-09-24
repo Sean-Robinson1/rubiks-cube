@@ -180,7 +180,7 @@ class GUI:
         self.video_label = tk.Label(self.tk)
         self.video_label.pack(fill=tk.BOTH, expand=True, padx=10, pady=10)
 
-        scanner = CubeScanner(self.video_label, self.calibratedColours)
+        scanner = CubeScanner(self.video_label)
         self.scanner = scanner
         btn_row = tk.Frame(self.tk)
         btn_row.pack(side=tk.BOTTOM, pady=10)
@@ -193,13 +193,21 @@ class GUI:
 
         def end_scan():
             logging.info("Ending cube scan")
+            state, problems = scanner.getCubeString()
+            # stay on the scan so Back can fix it
+            if problems or state is None:
+                messagebox.showerror("Can't use this scan", "\n".join(problems), parent=self.tk)
+                return
             scanner.stop()
             self.plotter = CubePlotter()
-            self.cube.initialiseFaces(scanner.getCubeString())
+            self.cube.initialiseFaces(state)
             self.createTkWindow()
 
         cancel_btn = tk.Button(btn_row, text="Cancel", font=("Arial", 20), bg="lightcoral", command=cancel_scan)
         cancel_btn.pack(side=tk.LEFT, padx=5)
+
+        back_btn = tk.Button(btn_row, text="Back", font=("Arial", 20), bg="lightyellow", command=scanner.back)
+        back_btn.pack(side=tk.LEFT, padx=5)
 
         end_btn = tk.Button(btn_row, text="End Scan", font=("Arial", 20), bg="lightgreen", command=end_scan)
         end_btn.pack(side=tk.LEFT, padx=5)

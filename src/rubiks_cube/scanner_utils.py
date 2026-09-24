@@ -4,8 +4,8 @@ from collections.abc import Sequence
 import cv2
 import numpy as np
 
-from .constants import FACE_TO_POSITION, SOLVED_MASK, USUAL_COLOUR_VALUES
-from .cube_validation import CENTRES
+from .constants import FACE_TO_POSITION, PLOTTING_COLOUR_MAP, SOLVED_MASK
+from .cube_validation import CENTRES, validateCube
 
 
 def distance(r, g, b, r2, g2, b2) -> float:
@@ -41,12 +41,13 @@ def getClosestColourName(colour: tuple[float, float, float], colours: list[tuple
     return closestColour[0]
 
 
-def displayFace(image: np.ndarray, colourList: list[str]) -> np.ndarray:
-    """Displays a map of all the faces of the cube which have been detected.
+def displayFace(image: np.ndarray, face: str, colours: Sequence[Sequence[float]]) -> np.ndarray:
+    """Draws one face into the map of scanned faces.
 
     Args:
         image (np.ndarray): The image to draw the face on.
-        colourList (list[str]): The colour names of the face's nine squares.
+        face (str): The face's letter, which decides where it goes on the map.
+        colours (Sequence[Sequence[float]]): The BGR colours of the face's nine squares.
 
     Returns:
         np.ndarray: The image with the face drawn on it.
@@ -57,14 +58,14 @@ def displayFace(image: np.ndarray, colourList: list[str]) -> np.ndarray:
     jump = 2
 
     # gets the topleft corner of the face and draws the squares in a 3x3 grid
-    topLeft = FACE_TO_POSITION[colourList[4]]
+    topLeft = FACE_TO_POSITION[PLOTTING_COLOUR_MAP[face]]
     for i in range(3):
         for ii in range(3):
             cv2.rectangle(
                 image,
                 (topLeft[0] + i * width, topLeft[1] + ii * width),
                 (topLeft[0] + (i + 1) * (width) - jump, topLeft[1] + (ii + 1) * (width) - jump),
-                USUAL_COLOUR_VALUES[colourList[i + 3 * ii]],
+                tuple(int(c) for c in colours[i + 3 * ii]),
                 -1,
             )
 
@@ -243,6 +244,18 @@ def readFaceColours(frame: np.ndarray, output: np.ndarray | None = None) -> list
     return None
 
 
+def toLab(colours: Sequence[Sequence[float]]) -> np.ndarray:
+    """RGB colours to LAB, where distances match how different colours look far better than in RGB.
+
+    Args:
+        colours (Sequence[Sequence[float]]): RGB colours, 0-255.
+
+    Returns:
+        np.ndarray: One L, a, b row per colour.
+    """
+    return cv2.cvtColor(np.array(colours, dtype=np.float32).reshape(1, -1, 3) / 255, cv2.COLOR_RGB2LAB)[0]
+
+
 def assignColours(stickers: Sequence[Sequence[float]]) -> str:
     """Names all 54 stickers at once against the cube's own centres, nine to each colour.
 
@@ -256,8 +269,7 @@ def assignColours(stickers: Sequence[Sequence[float]]) -> str:
     Returns:
         str: The cube state.
     """
-    # distances in LAB, where they match how different colours look far better than in RGB
-    lab = cv2.cvtColor(np.array(stickers, dtype=np.float32).reshape(1, -1, 3) / 255, cv2.COLOR_RGB2LAB)[0]
+    lab = toLab(stickers)
     others = [i for i in range(54) if i not in CENTRES]
     names = [SOLVED_MASK[i] for i in CENTRES]
     distances = np.linalg.norm(lab[:, None, :] - lab[CENTRES][None, :, :], axis=2)
@@ -283,3 +295,144 @@ def assignColours(stickers: Sequence[Sequence[float]]) -> str:
                     state[a], state[b] = state[b], state[a]
                     improved = True
     return "".join(state)
+
+
+# the four sides are a quarter turn apart, then white and yellow need a tilt
+SCAN_ORDER = "RBOGWY"
+# the face that goes on top when each one is shown, so it's read the way Cube.state lays it out
+SCAN_TOPS = {"R": "W", "B": "W", "O": "W", "G": "W", "W": "O", "Y": "R"}
+
+# timings in seconds, distances in LAB. the distances will want checking on a real camera: the
+# closest two different centres got on the synthetic frames was ~21 apart (white and yellow,
+# overexposed), and noise moved a sticker by up to ~15 between frames of the same face
+SETTLE_TIME = 0.3
+COLLECT_TIME = 0.5
+LOST_TIME = 0.3
+STEADY_DISTANCE = 25
+NEW_FACE_DISTANCE = 15
+
+
+class GuidedScan:
+    """Asks for the faces one at a time in SCAN_ORDER and turns camera readings into a cube state.
+
+    There's no camera or Tk in here so it can be tested, CubeScanner feeds it a reading per frame.
+    Once a face appears it's left to settle, then the median of a short run of steady readings is
+    taken. After a capture nothing is read until a face with a different centre shows up.
+    """
+
+    def __init__(self) -> None:
+        self.faces: dict[str, list[tuple[float, float, float]]] = {}
+        self.state: str | None = None
+        self.problems: list[str] = []
+        self.message = ""
+        self.waitFor = None
+        self.restart()
+
+    def restart(self, now: float | None = None) -> None:
+        """Forgets the face in view, so it has to settle from scratch.
+
+        Args:
+            now (float, optional): When a face is still in view, the time to settle it from.
+        """
+        self.seen = now
+        self.lastSeen = now
+        self.readings = []
+        self.collectStart = 0.0
+        self.progress = 0.0
+
+    @property
+    def done(self) -> bool:
+        return len(self.faces) == 6
+
+    def prompt(self) -> tuple[str, str] | None:
+        """The face to show next and the face that goes on top of it, or None once all six are in."""
+        if self.done:
+            return None
+        face = SCAN_ORDER[len(self.faces)]
+        return face, SCAN_TOPS[face]
+
+    def addReading(self, colours: list[tuple[float, float, float]] | None, now: float) -> None:
+        """Takes one frame's readFaceColours result.
+
+        Args:
+            colours (list[tuple[float, float, float]] | None): The nine measured colours, or None if no
+                face was found in the frame.
+            now (float): The time of the frame, in seconds.
+        """
+        if self.done:
+            return
+
+        if colours is None:
+            # one missed frame is fine, a face gone for longer has to settle again
+            if self.lastSeen is not None and now - self.lastSeen > LOST_TIME:
+                self.restart()
+            return
+        self.lastSeen = now
+
+        centre = toLab([colours[4]])[0]
+        if self.waitFor is not None:
+            if np.linalg.norm(centre - self.waitFor) < NEW_FACE_DISTANCE:
+                return
+            self.waitFor = None
+
+        if self.seen is None:
+            self.seen = now
+        if now - self.seen < SETTLE_TIME:
+            return
+
+        # the cube moved, let it settle again
+        if self.readings and np.linalg.norm(toLab(colours) - toLab(self.readings[0]), axis=1).max() > STEADY_DISTANCE:
+            self.restart(now)
+            return
+        if not self.readings:
+            self.collectStart = now
+        self.readings.append(colours)
+        self.progress = min(1.0, (now - self.collectStart) / COLLECT_TIME)
+
+        if now - self.collectStart >= COLLECT_TIME:
+            self.capture([(float(r), float(g), float(b)) for r, g, b in np.median(self.readings, axis=0)])
+
+    def capture(self, colours: list[tuple[float, float, float]]) -> None:
+        face = SCAN_ORDER[len(self.faces)]
+        centre = toLab([colours[4]])[0]
+        self.restart()
+
+        for other, otherColours in self.faces.items():
+            if np.linalg.norm(centre - toLab([otherColours[4]])[0]) < NEW_FACE_DISTANCE:
+                self.message = f"that looks like the {PLOTTING_COLOUR_MAP[other].lower()} face again"
+                self.waitFor = centre
+                return
+
+        # glare that covers most of the centre reads as clipped white. white's centre is meant to be
+        # white, and glare on it doesn't matter anyway
+        if face != "W" and min(colours[4]) >= 245:
+            self.message = "glare on the centre, tilt the cube a little"
+            return
+
+        self.faces[face] = colours
+        self.waitFor = centre
+        if self.done:
+            self.finish()
+        else:
+            self.message = "got it"
+
+    def finish(self) -> None:
+        """Names all 54 stickers once every face is in and checks the result is a real cube."""
+        stickers = [c for face in SOLVED_MASK[4::9] for c in self.faces[face]]
+        self.state = assignColours(stickers)
+        self.problems = validateCube(self.state)
+        self.message = "that isn't a real cube, go back and rescan" if self.problems else "looks good, press End Scan"
+
+    def back(self) -> None:
+        """Drops the last face so it can be scanned again."""
+        if self.faces:
+            self.faces.popitem()
+        self.state = None
+        self.problems = []
+        self.message = ""
+        self.waitFor = None
+        self.restart()
+
+    def missing(self) -> list[str]:
+        """The faces still to scan, by colour name."""
+        return [PLOTTING_COLOUR_MAP[face].lower() for face in SCAN_ORDER if face not in self.faces]

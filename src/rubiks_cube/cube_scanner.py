@@ -1,51 +1,34 @@
 import logging
+import time
 from tkinter import Label
 
 import cv2
 import numpy as np
 from PIL import Image, ImageTk
 
-from .constants import SCAN_COLOURS
-from .scanner_utils import displayFace, readFace
+from .constants import PLOTTING_COLOUR_MAP, SOLVED_MASK, USUAL_COLOUR_VALUES
+from .scanner_utils import GuidedScan, displayFace, readFaceColours
 
 
 class CubeScanner:
-    def __init__(self, videoLabel: Label, calibratedColours: dict[str, np.ndarray] | None = None) -> None:
-        """Initialises the CubeScanner with a video label and optional calibrated colours.
+    def __init__(self, videoLabel: Label) -> None:
+        """Initialises the CubeScanner with a video label.
 
         Args:
             videoLabel (Label): The Tkinter label to display the video feed.
-            calibratedColours (dict[str, np.ndarray], optional): A dictionary of calibrated colours. Defaults to None.
         """
         logging.info("Initialising CubeScanner")
         self.videoLabel = videoLabel
         self.vid = cv2.VideoCapture(0)
-        self.previousFaces = {
-            "Red": [],
-            "Green": [],
-            "Blue": [],
-            "Yellow": [],
-            "Orange": [],
-            "White": [],
-        }
+        self.scan = GuidedScan()
         self.running = True
         self.photo = None
-
-        self.previous = []
-        self.previousCount = 0
-
-        if calibratedColours is not None:
-            self.colours = []
-            for colourName, rgb in calibratedColours.items():
-                self.colours.append((colourName, rgb))
-        else:
-            self.colours = SCAN_COLOURS
 
         self.updateFrame()
 
     def updateFrame(self) -> None:
-        """Gets a frame from the VideoCapture and then tries to find a rubiks cube in
-        the image, extract the colours and add it to the list of found faces."""
+        """Gets a frame from the VideoCapture, reads any cube face in it into the scan and shows the
+        frame with the scan's prompt drawn on."""
         if not self.running:
             if self.vid.isOpened():
                 self.vid.release()
@@ -64,20 +47,8 @@ class CubeScanner:
             return
 
         output = frame.copy()
-        colours = readFace(frame, self.colours, output)
-        if colours is not None:
-            # compares to previous scan
-            if self.previous == colours:
-                self.previousCount += 1
-                if self.previousCount >= 3:
-                    self.previousFaces[colours[4]] = colours
-            else:
-                self.previous = colours
-                self.previousCount = 0
-
-        for _, colourRGB in self.previousFaces.items():
-            if colourRGB != []:
-                output = displayFace(output, colourRGB)
+        self.scan.addReading(readFaceColours(frame, output), time.monotonic())
+        self.drawScan(output)
 
         w = round(self.videoLabel.winfo_width() * 0.9)
         h = round(self.videoLabel.winfo_height() * 0.9)
@@ -102,29 +73,68 @@ class CubeScanner:
         if self.running and self.videoLabel.winfo_exists():
             self.videoLabel.after(10, self.updateFrame)
 
+    def drawScan(self, output: np.ndarray) -> None:
+        """Draws the prompt, the capture progress, any message and the map of faces scanned so far.
+
+        Args:
+            output (np.ndarray): The frame to draw on.
+        """
+        h = output.shape[0]
+
+        def text(line: str, y: int, scale: float = 0.7) -> None:
+            # dark outline under white so it reads on any background
+            cv2.putText(output, line, (20, y), cv2.FONT_HERSHEY_SIMPLEX, scale, (0, 0, 0), 4, cv2.LINE_AA)
+            cv2.putText(output, line, (20, y), cv2.FONT_HERSHEY_SIMPLEX, scale, (255, 255, 255), 2, cv2.LINE_AA)
+
+        prompt = self.scan.prompt()
+        if prompt is not None:
+            face, top = prompt
+            name, topName = PLOTTING_COLOUR_MAP[face], PLOTTING_COLOUR_MAP[top]
+            text(f"{len(self.scan.faces) + 1}/6: show the {name.lower()} face, {topName.lower()} on top", h - 50)
+
+            # the face to show, with a bar along its top in the colour that goes on top
+            cv2.rectangle(output, (20, h - 130), (70, h - 80), USUAL_COLOUR_VALUES[name], -1)
+            cv2.rectangle(output, (20, h - 142), (70, h - 134), USUAL_COLOUR_VALUES[topName], -1)
+            if self.scan.progress:
+                cv2.rectangle(output, (90, h - 110), (90 + int(200 * self.scan.progress), h - 100), (0, 255, 0), -1)
+
+        text(self.scan.message, h - 20)
+        # the first few only, the view is needed for rescanning. End Scan lists them all
+        problems = self.scan.problems[:3]
+        if len(self.scan.problems) > 3:
+            problems.append(f"and {len(self.scan.problems) - 3} more")
+        for i, problem in enumerate(reversed(problems)):
+            text(problem, h - 50 - 22 * i, 0.5)
+
+        # measured colours while scanning, the names they were given once all six are in
+        for face, colours in self.scan.faces.items():
+            if self.scan.state is not None:
+                start = SOLVED_MASK[4::9].index(face) * 9
+                shown = [USUAL_COLOUR_VALUES[PLOTTING_COLOUR_MAP[c]] for c in self.scan.state[start : start + 9]]
+            else:
+                shown = [(b, g, r) for r, g, b in colours]
+            displayFace(output, face, shown)
+
     def stop(self) -> None:
         """Stops the webcam recording and releases the video."""
         self.running = False
         if hasattr(self, "vid") and self.vid.isOpened():
             self.vid.release()
 
-    def getCubeString(self) -> str | None:
-        """Returns the cube string representation of the scanned cube.
+    def back(self) -> None:
+        """Drops the last scanned face so it can be scanned again."""
+        self.scan.back()
+
+    def getCubeString(self) -> tuple[str | None, list[str]]:
+        """Returns the scanned cube, or what's stopping it being used.
 
         Returns:
-            str | None: The cube string representation, or None if not all faces are scanned.
+            tuple[str | None, list[str]]: The cube state and the problems with it. The state is only
+            safe to use when there are no problems.
         """
-        cubeString = ""
-        for face in ["White", "Green", "Red", "Blue", "Orange", "Yellow"]:
-            if self.previousFaces[face] == []:
-                return None
-            for colour in self.previousFaces[face]:
-                cubeString += colour[0]
+        if not self.scan.done:
+            return None, ["still to scan: " + ", ".join(self.scan.missing())]
 
-        for colour in ["W", "G", "R", "B", "O", "Y"]:
-            if cubeString.count(colour) != 9:
-                return None
+        logging.debug(f"Scanned cube: {self.scan.state}")
 
-        logging.debug(f"Scanned cube: {cubeString}")
-
-        return cubeString
+        return self.scan.state, self.scan.problems
